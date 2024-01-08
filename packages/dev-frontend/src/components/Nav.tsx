@@ -1,4 +1,4 @@
-import { Flex, Box, Badge, Text } from "theme-ui";
+import { Flex, Box, Badge } from "theme-ui";
 import { Link } from "./Link";
 
 const TemporaryNewBadge = () => {

@@ -1,6 +1,5 @@
 import { Flex, Text, Slider as ThemeUiSlider, Button } from "theme-ui";
 import { Decimal } from "@liquity/lib-base";
-import { toFloat } from "./Bonds/utils";
 import { InfoIcon } from "./InfoIcon";
 
 type SliderProps = {
@@ -15,6 +14,8 @@ type SliderProps = {
   onSliderChange: (value: Decimal) => void;
   onReset?: () => void;
 };
+
+const toFloat = (decimal: Decimal): number => parseFloat(decimal.toString());
 
 export const HorizontalSlider: React.FC<SliderProps> = ({
   name,

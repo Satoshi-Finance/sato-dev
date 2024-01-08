@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { TransactionStatus } from "../components/Bonds/context/transitions";
+type TransactionStatus = "IDLE" | "PENDING" | "CONFIRMED" | "FAILED";
 
 export function useTransaction<T extends unknown[]>(
   transactionFunction: (...params: T) => Promise<void>,
