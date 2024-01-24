@@ -92,23 +92,23 @@ class BorrowerOperationsProxy extends Proxy {
   }
 
   async openTrove(...params) {
-    return this.forwardFunction(params, 'openTrove(uint256,uint256,address,address)')
+    return this.forwardFunction(params, 'openTrove(uint256,uint256,uint256)')
   }
 
   async addColl(...params) {
-    return this.forwardFunction(params, 'addColl(address,address)')
+    return this.forwardFunction(params, 'addColl(uint256)')
   }
 
   async withdrawColl(...params) {
-    return this.forwardFunction(params, 'withdrawColl(uint256,address,address)')
+    return this.forwardFunction(params, 'withdrawColl(uint256s)')
   }
 
   async withdrawLUSD(...params) {
-    return this.forwardFunction(params, 'withdrawLUSD(uint256,uint256,address,address)')
+    return this.forwardFunction(params, 'withdrawLUSD(uint256,uint256)')
   }
 
   async repayLUSD(...params) {
-    return this.forwardFunction(params, 'repayLUSD(uint256,address,address)')
+    return this.forwardFunction(params, 'repayLUSD(uint256)')
   }
 
   async closeTrove(...params) {
@@ -116,7 +116,7 @@ class BorrowerOperationsProxy extends Proxy {
   }
 
   async adjustTrove(...params) {
-    return this.forwardFunction(params, 'adjustTrove(uint256,uint256,uint256,bool,address,address)')
+    return this.forwardFunction(params, 'adjustTrove(uint256,uint256,bool,uint256,bool)')
   }
 
   async claimRedeemedCollateral(...params) {
@@ -154,15 +154,15 @@ class BorrowerWrappersProxy extends Proxy {
   }
 
   async claimCollateralAndOpenTrove(...params) {
-    return this.forwardFunction(params, 'claimCollateralAndOpenTrove(uint256,uint256,address,address)')
+    return this.forwardFunction(params, 'claimCollateralAndOpenTrove(uint256,uint256,uint256)')
   }
 
   async claimSPRewardsAndRecycle(...params) {
-    return this.forwardFunction(params, 'claimSPRewardsAndRecycle(uint256,address,address)')
+    return this.forwardFunction(params, 'claimSPRewardsAndRecycle(uint256)')
   }
 
   async claimStakingGainsAndRecycle(...params) {
-    return this.forwardFunction(params, 'claimStakingGainsAndRecycle(uint256,address,address)')
+    return this.forwardFunction(params, 'claimStakingGainsAndRecycle(uint256)')
   }
 
   async transferETH(...params) {
@@ -185,6 +185,10 @@ class TroveManagerProxy extends Proxy {
 
   async getTroveDebt(user) {
     return this.proxyFunctionWithUser('getTroveDebt', user)
+  }
+
+  async getEntireDebtAndColl(user) {
+    return this.proxyFunctionWithUser('getEntireDebtAndColl', user)
   }
 
   async getTroveColl(user) {
@@ -244,35 +248,31 @@ class TroveManagerProxy extends Proxy {
   }
 
   async redeemCollateral(...params) {
-    return this.forwardFunction(params, 'redeemCollateral(uint256,address,address,address,uint256,uint256,uint256)')
+    return this.forwardFunction(params, 'redeemCollateral(uint256,uint256)')
   }
 
   async getActualDebtFromComposite(...params) {
     return this.proxyFunction('getActualDebtFromComposite', params)
   }
 
-  async getRedemptionFeeWithDecay(...params) {
-    return this.proxyFunction('getRedemptionFeeWithDecay', params)
+  async getRedemptionFeeWithDecayForRedeemer(...params) {
+    return this.proxyFunction('getRedemptionFeeWithDecayForRedeemer', params)
   }
 
-  async getBorrowingRate() {
-    return this.proxyFunction('getBorrowingRate', [])
+  async getBorrowingRateForBorrower(...params) {
+    return this.proxyFunction('getBorrowingRateForBorrower', params)
   }
 
-  async getBorrowingRateWithDecay() {
-    return this.proxyFunction('getBorrowingRateWithDecay', [])
+  async getBorrowingRateWithDecayForBorrower(...params) {
+    return this.proxyFunction('getBorrowingRateWithDecayForBorrower', params)
   }
 
-  async getBorrowingFee(...params) {
-    return this.proxyFunction('getBorrowingFee', params)
+  async getBorrowingFeeForBorrower(...params) {
+    return this.proxyFunction('getBorrowingFeeForBorrower', params)
   }
 
-  async getBorrowingFeeWithDecay(...params) {
-    return this.proxyFunction('getBorrowingFeeWithDecay', params)
-  }
-
-  async getEntireDebtAndColl(...params) {
-    return this.proxyFunction('getEntireDebtAndColl', params)
+  async getBorrowingFeeWithDecayForBorrower(...params) {
+    return this.proxyFunction('getBorrowingFeeWithDecayForBorrower', params)
   }
 }
 
@@ -285,8 +285,8 @@ class StabilityPoolProxy extends Proxy {
     return this.forwardFunction(params, 'provideToSP(uint256,address)')
   }
 
-  async getCompoundedLUSDDeposit(user) {
-    return this.proxyFunctionWithUser('getCompoundedLUSDDeposit', user)
+  async getCompoundedDebtDeposit(user) {
+    return this.proxyFunctionWithUser('getCompoundedDebtDeposit', user)
   }
 
   async deposits(user) {
@@ -295,24 +295,6 @@ class StabilityPoolProxy extends Proxy {
 
   async getDepositorETHGain(user) {
     return this.proxyFunctionWithUser('getDepositorETHGain', user)
-  }
-}
-
-class SortedTrovesProxy extends Proxy {
-  constructor(owner, proxies, sortedTroves) {
-    super(owner, proxies, null, sortedTroves)
-  }
-
-  async contains(user) {
-    return this.proxyFunctionWithUser('contains', user)
-  }
-
-  async isEmpty(user) {
-    return this.proxyFunctionWithUser('isEmpty', user)
-  }
-
-  async findInsertPosition(...params) {
-    return this.proxyFunction('findInsertPosition', params)
   }
 }
 
@@ -381,7 +363,7 @@ class TokenProxy extends Proxy {
   }
 }
 
-class LQTYStakingProxy extends Proxy {
+class SATOStakingProxy extends Proxy {
   constructor(owner, proxies, tokenScriptAddress, token) {
     super(owner, proxies, tokenScriptAddress, token)
   }
@@ -405,7 +387,6 @@ module.exports = {
   BorrowerWrappersProxy,
   TroveManagerProxy,
   StabilityPoolProxy,
-  SortedTrovesProxy,
   TokenProxy,
-  LQTYStakingProxy
+  SATOStakingProxy
 }

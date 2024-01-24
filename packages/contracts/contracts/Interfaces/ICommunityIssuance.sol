@@ -6,15 +6,17 @@ interface ICommunityIssuance {
     
     // --- Events ---
     
-    event LQTYTokenAddressSet(address _lqtyTokenAddress);
+    event SATOTokenAddressSet(address _satoTokenAddress);
     event StabilityPoolAddressSet(address _stabilityPoolAddress);
-    event TotalLQTYIssuedUpdated(uint _totalLQTYIssued);
+    event TotalSATOIssuedUpdated(uint _totalSATOIssued);
 
     // --- Functions ---
 
-    function setAddresses(address _lqtyTokenAddress, address _stabilityPoolAddress) external;
+    function setAddresses(address _satoTokenAddress, address _stabilityPoolAddress) external;
 
-    function issueLQTY() external returns (uint);
+    function issueSATO() external returns (uint);
 
-    function sendLQTY(address _account, uint _LQTYamount) external;
+    function sendSATO(address _account, uint _amount) external;
+	
+    function getSATOYetToIssue() external view returns (uint256);
 }

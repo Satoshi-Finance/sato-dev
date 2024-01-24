@@ -5,10 +5,7 @@ pragma solidity 0.6.11;
 // Common interface for the Pools.
 interface IPool {
     
-    // --- Events ---
-    
-    event ETHBalanceUpdated(uint _newBalance);
-    event LUSDBalanceUpdated(uint _newBalance);
+    // --- Events ---    
     event ActivePoolAddressChanged(address _newActivePoolAddress);
     event DefaultPoolAddressChanged(address _newDefaultPoolAddress);
     event StabilityPoolAddressChanged(address _newStabilityPoolAddress);

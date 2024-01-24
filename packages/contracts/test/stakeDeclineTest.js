@@ -1,13 +1,14 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js")
 const testHelpers = require("../utils/testHelpers.js")
 const TroveManagerTester = artifacts.require("./TroveManagerTester.sol")
-const LUSDTokenTester = artifacts.require("./LUSDTokenTester.sol")
+const BTUSDTokenTester = artifacts.require("./BTUSDTokenTester.sol")
 
 const th = testHelpers.TestHelper
 const dec = th.dec
 const toBN = th.toBN
 const assertRevert = th.assertRevert
 const mv = testHelpers.MoneyValues
+const MoneyValues = mv
 const timeValues = testHelpers.TimeValues
 
 
@@ -26,8 +27,7 @@ contract('TroveManager', async accounts => {
   const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000)
 
   let priceFeed
-  let lusdToken
-  let sortedTroves
+  let debtToken
   let troveManager
   let activePool
   let stabilityPool
@@ -35,6 +35,7 @@ contract('TroveManager', async accounts => {
   let defaultPool
   let borrowerOperations
   let hintHelpers
+  let collateralToken
 
   let contracts
 
@@ -51,51 +52,61 @@ contract('TroveManager', async accounts => {
   beforeEach(async () => {
     contracts = await deploymentHelper.deployLiquityCore()
     contracts.troveManager = await TroveManagerTester.new()
-    contracts.lusdToken = await LUSDTokenTester.new(
+    contracts.debtToken = await BTUSDTokenTester.new(
       contracts.troveManager.address,
       contracts.stabilityPool.address,
       contracts.borrowerOperations.address
     )
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(bountyAddress, lpRewardsAddress, multisig)
+    const SATOContracts = await deploymentHelper.deploySATOContracts(bountyAddress, lpRewardsAddress, multisig)
 
     priceFeed = contracts.priceFeedTestnet
-    lusdToken = contracts.lusdToken
-    sortedTroves = contracts.sortedTroves
+    debtToken = contracts.debtToken
     troveManager = contracts.troveManager
     activePool = contracts.activePool
     stabilityPool = contracts.stabilityPool
     defaultPool = contracts.defaultPool
     collSurplusPool = contracts.collSurplusPool
     borrowerOperations = contracts.borrowerOperations
-    hintHelpers = contracts.hintHelpers
+    collateralToken = contracts.collateral
 
-    lqtyStaking = LQTYContracts.lqtyStaking
-    lqtyToken = LQTYContracts.lqtyToken
-    communityIssuance = LQTYContracts.communityIssuance
-    lockupContractFactory = LQTYContracts.lockupContractFactory
+    satoStaking = SATOContracts.satoStaking
+    satoToken = SATOContracts.satoToken
+    communityIssuance = SATOContracts.communityIssuance
+    lockupContractFactory = SATOContracts.lockupContractFactory
 
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts)
-    await deploymentHelper.connectLQTYContracts(LQTYContracts)
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts)
+    await deploymentHelper.connectCoreContracts(contracts, SATOContracts)
+    await deploymentHelper.connectSATOContracts(SATOContracts)
+    await deploymentHelper.connectSATOContractsToCore(SATOContracts, contracts)
   })
 
   it("A given trove's stake decline is negligible with adjustments and tiny liquidations", async () => {
     await priceFeed.setPrice(dec(100, 18))
   
     // Make 1 mega troves A at ~50% total collateral
-    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(1, 31)), ZERO_ADDRESS, ZERO_ADDRESS, { from: A, value: dec(2, 29) })
+    await th.getCollateralTokenWithApprovalToBO(contracts, A, MoneyValues._1Be18BN.mul(toBN('100000')), dec(2, 29));
+    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(1, 31)), dec(2, 29), { from: A, value: 0 })
     
     // Make 5 large troves B, C, D, E, F at ~10% total collateral
-    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), ZERO_ADDRESS, ZERO_ADDRESS, { from: B, value: dec(4, 28) })
-    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), ZERO_ADDRESS, ZERO_ADDRESS, { from: C, value: dec(4, 28) })
-    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), ZERO_ADDRESS, ZERO_ADDRESS, { from: D, value: dec(4, 28) })
-    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), ZERO_ADDRESS, ZERO_ADDRESS, { from: E, value: dec(4, 28) })
-    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), ZERO_ADDRESS, ZERO_ADDRESS, { from: F, value: dec(4, 28) })
+    await th.getCollateralTokenWithApprovalToBO(contracts, B, MoneyValues._1Be18BN.mul(toBN('100000')), dec(4, 28));
+    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), dec(4, 28), { from: B, value: 0 })
+	
+    await th.getCollateralTokenWithApprovalToBO(contracts, C, MoneyValues._1Be18BN.mul(toBN('100000')), dec(4, 28));
+    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), dec(4, 28), { from: C, value: 0 })
+	
+    await th.getCollateralTokenWithApprovalToBO(contracts, D, MoneyValues._1Be18BN.mul(toBN('100000')), dec(4, 28));
+    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), dec(4, 28), { from: D, value: 0 })
+	
+    await th.getCollateralTokenWithApprovalToBO(contracts, E, MoneyValues._1Be18BN.mul(toBN('100000')), dec(4, 28));
+    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), dec(4, 28), { from: E, value: 0 })
+	
+    await th.getCollateralTokenWithApprovalToBO(contracts, F, MoneyValues._1Be18BN.mul(toBN('100000')), dec(4, 28));
+    await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(2, 30)), dec(4, 28), { from: F, value: 0 })
   
     // Make 10 tiny troves at relatively negligible collateral (~1e-9 of total)
     const tinyTroves = accounts.slice(10, 20)
-    for (account of tinyTroves) {
-      await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(1, 22)), ZERO_ADDRESS, ZERO_ADDRESS, { from: account, value: dec(2, 20) })
+    for (account of tinyTroves) {	
+      await th.getCollateralTokenWithApprovalToBO(contracts, account, MoneyValues._1Be18BN.mul(toBN('100000')), dec(2, 20));
+      await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(1, 22)), dec(2, 20), { from: account, value: 0 })
     }
 
     // liquidate 1 trove at ~50% total system collateral
@@ -110,7 +121,7 @@ contract('TroveManager', async accounts => {
     console.log(`B stake after L1: ${(await troveManager.Troves(B))[2]}`)
 
     // adjust trove B 1 wei: apply rewards
-    await borrowerOperations.adjustTrove(th._100pct, 0, 1, false, ZERO_ADDRESS, ZERO_ADDRESS, {from: B})  // B repays 1 wei
+    await borrowerOperations.adjustTrove(th._100pct, 0, false, 1, false, {from: B})  // B repays 1 wei
     console.log(`B stake after A1: ${(await troveManager.Troves(B))[2]}`)
     console.log(`Snapshots ratio after A1: ${await getSnapshotsRatio()}`)
 
@@ -121,7 +132,7 @@ contract('TroveManager', async accounts => {
       await troveManager.liquidate(trove)
       console.log(`B stake after L${idx + 2}: ${(await troveManager.Troves(B))[2]}`)
       console.log(`Snapshots ratio after L${idx + 2}: ${await getSnapshotsRatio()}`)
-      await borrowerOperations.adjustTrove(th._100pct, 0, 1, false, ZERO_ADDRESS, ZERO_ADDRESS, {from: B})  // A repays 1 wei
+      await borrowerOperations.adjustTrove(th._100pct, 0, false, 1, false, {from: B})  // A repays 1 wei
       console.log(`B stake after A${idx + 2}: ${(await troveManager.Troves(B))[2]}`)
     }
   })

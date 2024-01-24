@@ -1,7 +1,6 @@
 const deploymentHelper = require("../utils/deploymentHelpers.js")
 const { TestHelper: th, MoneyValues: mv } = require("../utils/testHelpers.js")
 
-const GasPool = artifacts.require("./GasPool.sol")
 const BorrowerOperationsTester = artifacts.require("./BorrowerOperationsTester.sol")
 
 contract('All Liquity functions with onlyOwner modifier', async accounts => {
@@ -11,37 +10,35 @@ contract('All Liquity functions with onlyOwner modifier', async accounts => {
   const [bountyAddress, lpRewardsAddress, multisig] = accounts.slice(997, 1000)
   
   let contracts
-  let lusdToken
-  let sortedTroves
+  let debtToken
   let troveManager
   let activePool
   let stabilityPool
   let defaultPool
   let borrowerOperations
 
-  let lqtyStaking
+  let satoStaking
   let communityIssuance
-  let lqtyToken 
+  let satoToken 
   let lockupContractFactory
 
   before(async () => {
     contracts = await deploymentHelper.deployLiquityCore()
     contracts.borrowerOperations = await BorrowerOperationsTester.new()
-    contracts = await deploymentHelper.deployLUSDToken(contracts)
-    const LQTYContracts = await deploymentHelper.deployLQTYContracts(bountyAddress, lpRewardsAddress, multisig)
+    contracts = await deploymentHelper.deployDebtToken(contracts)
+    const SATOContracts = await deploymentHelper.deploySATOContracts(bountyAddress, lpRewardsAddress, multisig)
 
-    lusdToken = contracts.lusdToken
-    sortedTroves = contracts.sortedTroves
+    debtToken = contracts.debtToken
     troveManager = contracts.troveManager
     activePool = contracts.activePool
     stabilityPool = contracts.stabilityPool
     defaultPool = contracts.defaultPool
     borrowerOperations = contracts.borrowerOperations
 
-    lqtyStaking = LQTYContracts.lqtyStaking
-    communityIssuance = LQTYContracts.communityIssuance
-    lqtyToken = LQTYContracts.lqtyToken
-    lockupContractFactory = LQTYContracts.lockupContractFactory
+    satoStaking = SATOContracts.satoStaking
+    communityIssuance = SATOContracts.communityIssuance
+    satoToken = SATOContracts.satoToken
+    lockupContractFactory = SATOContracts.lockupContractFactory
   })
 
   const testZeroAddress = async (contract, params, method = 'setAddresses', skip = 0) => {
@@ -59,7 +56,7 @@ contract('All Liquity functions with onlyOwner modifier', async accounts => {
   }
 
   const testSetAddresses = async (contract, numberOfAddresses) => {
-    const dumbContract = await GasPool.new()
+    const dumbContract = await BorrowerOperationsTester.new()
     const params = Array(numberOfAddresses).fill(dumbContract.address)
 
     // Attempt call from alice
@@ -79,19 +76,19 @@ contract('All Liquity functions with onlyOwner modifier', async accounts => {
 
   describe('TroveManager', async accounts => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(troveManager, 11)
+      await testSetAddresses(troveManager, 10)
     })
   })
 
   describe('BorrowerOperations', async accounts => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(borrowerOperations, 10)
+      await testSetAddresses(borrowerOperations, 9)
     })
   })
 
   describe('DefaultPool', async accounts => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(defaultPool, 2)
+      await testSetAddresses(defaultPool, 3)
     })
   })
 
@@ -103,35 +100,13 @@ contract('All Liquity functions with onlyOwner modifier', async accounts => {
 
   describe('ActivePool', async accounts => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(activePool, 4)
+      await testSetAddresses(activePool, 8)
     })
   })
-
-  describe('SortedTroves', async accounts => {
-    it("setParams(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      const dumbContract = await GasPool.new()
-      const params = [10000001, dumbContract.address, dumbContract.address]
-
-      // Attempt call from alice
-      await th.assertRevert(sortedTroves.setParams(...params, { from: alice }))
-
-      // Attempt to use zero address
-      await testZeroAddress(sortedTroves, params, 'setParams', 1)
-      // Attempt to use non contract
-      await testNonContractAddress(sortedTroves, params, 'setParams', 1)
-
-      // Owner can successfully set params
-      const txOwner = await sortedTroves.setParams(...params, { from: owner })
-      assert.isTrue(txOwner.receipt.status)
-
-      // fails if called twice
-      await th.assertRevert(sortedTroves.setParams(...params, { from: owner }))
-    })
-  })
-
+  
   describe('CommunityIssuance', async accounts => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      const params = [lqtyToken.address, stabilityPool.address]
+      const params = [satoToken.address, stabilityPool.address]
       await th.assertRevert(communityIssuance.setAddresses(...params, { from: alice }))
 
       // Attempt to use zero address
@@ -148,29 +123,29 @@ contract('All Liquity functions with onlyOwner modifier', async accounts => {
     })
   })
 
-  describe('LQTYStaking', async accounts => {
+  describe('SATOStaking', async accounts => {
     it("setAddresses(): reverts when called by non-owner, with wrong addresses, or twice", async () => {
-      await testSetAddresses(lqtyStaking, 5)
+      await testSetAddresses(satoStaking, 6)
     })
   })
 
   describe('LockupContractFactory', async accounts => {
-    it("setLQTYAddress(): reverts when called by non-owner, with wrong address, or twice", async () => {
-      await th.assertRevert(lockupContractFactory.setLQTYTokenAddress(lqtyToken.address, { from: alice }))
+    it("setSATOAddress(): reverts when called by non-owner, with wrong address, or twice", async () => {
+      await th.assertRevert(lockupContractFactory.setSATOTokenAddress(satoToken.address, { from: alice }))
 
-      const params = [lqtyToken.address]
+      const params = [satoToken.address]
 
       // Attempt to use zero address
-      await testZeroAddress(lockupContractFactory, params, 'setLQTYTokenAddress')
+      await testZeroAddress(lockupContractFactory, params, 'setSATOTokenAddress')
       // Attempt to use non contract
-      await testNonContractAddress(lockupContractFactory, params, 'setLQTYTokenAddress')
+      await testNonContractAddress(lockupContractFactory, params, 'setSATOTokenAddress')
 
       // Owner can successfully set any address
-      const txOwner = await lockupContractFactory.setLQTYTokenAddress(lqtyToken.address, { from: owner })
+      const txOwner = await lockupContractFactory.setSATOTokenAddress(satoToken.address, { from: owner })
 
       assert.isTrue(txOwner.receipt.status)
       // fails if called twice
-      await th.assertRevert(lockupContractFactory.setLQTYTokenAddress(lqtyToken.address, { from: owner }))
+      await th.assertRevert(lockupContractFactory.setSATOTokenAddress(satoToken.address, { from: owner }))
     })
   })
 })

@@ -3,6 +3,7 @@ require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
+require("hardhat-tracer");
 
 const accounts = require("./hardhatAccountsList2k.js");
 const accountsList = accounts.accountsList
@@ -93,6 +94,6 @@ module.exports = {
         port: 8545
     },
     gasReporter: {
-        enabled: (process.env.REPORT_GAS) ? true : false
+        enabled: true
     }
 };

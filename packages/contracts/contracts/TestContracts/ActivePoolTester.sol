@@ -7,10 +7,10 @@ import "../ActivePool.sol";
 contract ActivePoolTester is ActivePool {
     
     function unprotectedIncreaseLUSDDebt(uint _amount) external {
-        LUSDDebt  = LUSDDebt.add(_amount);
+        BTUSDDebt  = BTUSDDebt.add(_amount);
     }
 
-    function unprotectedPayable() external payable {
-        ETH = ETH.add(msg.value);
+    function unprotectedReceiveColl(uint256 _amount) public {
+        systemCollateral = systemCollateral.add(_amount);
     }
 }

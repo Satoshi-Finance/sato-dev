@@ -20,20 +20,22 @@ contract LiquityBase is BaseMath, ILiquityBase {
 
     // Minimum collateral ratio for individual troves
     uint constant public MCR = 1100000000000000000; // 110%
+    // collateral ratio liquidatable in Recoevey Mode for individual troves if premium staking
+    uint constant public PREMIUM_LIQ_RATIO = 1080000000000000000; // 108%
 
     // Critical system collateral ratio. If the system's total collateral ratio (TCR) falls below the CCR, Recovery Mode is triggered.
-    uint constant public CCR = 1500000000000000000; // 150%
+    uint constant public CCR = 1300000000000000000; // 130%
 
-    // Amount of LUSD to be locked in gas pool on opening troves
-    uint constant public LUSD_GAS_COMPENSATION = 200e18;
-
-    // Minimum amount of net LUSD debt a trove must have
-    uint constant public MIN_NET_DEBT = 1800e18;
-    // uint constant public MIN_NET_DEBT = 0; 
+    /// @dev Minimum amount of btUSD debt a trove must have
+    uint constant public MIN_NET_DEBT = 200e18;
+	
+    /// @dev amount of btUSD reward to scavenger for zero-debt Trove 
+    uint constant public SCAVENGER_REWARD_DEBT = 20e18;
 
     uint constant public PERCENT_DIVISOR = 200; // dividing by 200 yields 0.5%
 
     uint constant public BORROWING_FEE_FLOOR = DECIMAL_PRECISION / 1000 * 5; // 0.5%
+    uint constant public BORROWING_FEE_FLOOR_PREMIUM = 4000000000000000; // 0.4%
 
     IActivePool public activePool;
 
@@ -43,16 +45,7 @@ contract LiquityBase is BaseMath, ILiquityBase {
 
     // --- Gas compensation functions ---
 
-    // Returns the composite debt (drawn debt + gas compensation) of a trove, for the purpose of ICR calculation
-    function _getCompositeDebt(uint _debt) internal pure returns (uint) {
-        return _debt.add(LUSD_GAS_COMPENSATION);
-    }
-
-    function _getNetDebt(uint _debt) internal pure returns (uint) {
-        return _debt.sub(LUSD_GAS_COMPENSATION);
-    }
-
-    // Return the amount of ETH to be drawn from a trove's collateral and sent as gas compensation.
+    // Return the amount of collateral to be drawn from a trove's collateral and sent as gas compensation.
     function _getCollGasCompensation(uint _entireColl) internal pure returns (uint) {
         return _entireColl / PERCENT_DIVISOR;
     }
@@ -73,7 +66,7 @@ contract LiquityBase is BaseMath, ILiquityBase {
 
     function _getTCR(uint _price) internal view returns (uint TCR) {
         uint entireSystemColl = getEntireSystemColl();
-        uint entireSystemDebt = getEntireSystemDebt();
+        uint entireSystemDebt = getEntireSystemDebt().sub(activePool.getRedeemedDebt());
 
         TCR = LiquityMath._computeCR(entireSystemColl, entireSystemDebt, _price);
 

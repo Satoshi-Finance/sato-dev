@@ -9,14 +9,14 @@ import "../Interfaces/IBorrowerOperations.sol";
 import "../Interfaces/ITroveManager.sol";
 import "../Interfaces/IStabilityPool.sol";
 import "../Interfaces/IPriceFeed.sol";
-import "../Interfaces/ILQTYStaking.sol";
+import "../Interfaces/ISATOStaking.sol";
 import "./BorrowerOperationsScript.sol";
 import "./ETHTransferScript.sol";
-import "./LQTYStakingScript.sol";
+import "./SATOStakingScript.sol";
 import "../Dependencies/console.sol";
 
 
-contract BorrowerWrappersScript is BorrowerOperationsScript, ETHTransferScript, LQTYStakingScript {
+contract BorrowerWrappersScript is BorrowerOperationsScript, ETHTransferScript, SATOStakingScript {
     using SafeMath for uint;
 
     string constant public NAME = "BorrowerWrappersScript";
@@ -24,17 +24,19 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, ETHTransferScript, 
     ITroveManager immutable troveManager;
     IStabilityPool immutable stabilityPool;
     IPriceFeed immutable priceFeed;
-    IERC20 immutable lusdToken;
-    IERC20 immutable lqtyToken;
-    ILQTYStaking immutable lqtyStaking;
+    IERC20 immutable debtToken;
+    IERC20 immutable satoToken;
+    ISATOStaking immutable satoStaking;
+    IERC20 immutable collateral;
 
     constructor(
         address _borrowerOperationsAddress,
         address _troveManagerAddress,
-        address _lqtyStakingAddress
+        address _satoStakingAddress,
+        address _collAddress
     )
         BorrowerOperationsScript(IBorrowerOperations(_borrowerOperationsAddress))
-        LQTYStakingScript(_lqtyStakingAddress)
+        SATOStakingScript(_satoStakingAddress)
         public
     {
         checkContract(_troveManagerAddress);
@@ -49,105 +51,112 @@ contract BorrowerWrappersScript is BorrowerOperationsScript, ETHTransferScript, 
         checkContract(address(priceFeedCached));
         priceFeed = priceFeedCached;
 
-        address lusdTokenCached = address(troveManagerCached.lusdToken());
-        checkContract(lusdTokenCached);
-        lusdToken = IERC20(lusdTokenCached);
+        address debtTokenCached = address(troveManagerCached.debtToken());
+        checkContract(debtTokenCached);
+        debtToken = IERC20(debtTokenCached);
 
-        address lqtyTokenCached = address(troveManagerCached.lqtyToken());
-        checkContract(lqtyTokenCached);
-        lqtyToken = IERC20(lqtyTokenCached);
+        address satoTokenCached = address(troveManagerCached.satoToken());
+        checkContract(satoTokenCached);
+        satoToken = IERC20(satoTokenCached);
+        collateral = IERC20(_collAddress);
 
-        ILQTYStaking lqtyStakingCached = troveManagerCached.lqtyStaking();
-        require(_lqtyStakingAddress == address(lqtyStakingCached), "BorrowerWrappersScript: Wrong LQTYStaking address");
-        lqtyStaking = lqtyStakingCached;
+        ISATOStaking satoStakingCached = troveManagerCached.satoStaking();
+        require(_satoStakingAddress == address(satoStakingCached), "BorrowerWrappersScript: Wrong SATOStaking address");
+        satoStaking = satoStakingCached;
     }
 
-    function claimCollateralAndOpenTrove(uint _maxFee, uint _LUSDAmount, address _upperHint, address _lowerHint) external payable {
-        uint balanceBefore = address(this).balance;
+    function claimCollateralAndOpenTrove(uint _maxFee, uint _debtAmount, uint _collAmt) external {
+        uint balanceBefore = collateral.balanceOf(address(this));
 
         // Claim collateral
         borrowerOperations.claimCollateral();
 
-        uint balanceAfter = address(this).balance;
+        uint balanceAfter = collateral.balanceOf(address(this));
 
         // already checked in CollSurplusPool
-        assert(balanceAfter > balanceBefore);
+        require(balanceAfter > balanceBefore, "BorrowerWrappersScript: wrong balance after claimCollateral");
 
-        uint totalCollateral = balanceAfter.sub(balanceBefore).add(msg.value);
+        uint totalCollateral = balanceAfter.sub(balanceBefore).add(_collAmt);
 
-        // Open trove with obtained collateral, plus collateral sent by user
-        borrowerOperations.openTrove{ value: totalCollateral }(_maxFee, _LUSDAmount, _upperHint, _lowerHint);
+        // Open trove with obtained collateral, plus collateral sent by user		
+        collateral.approve(address(borrowerOperations), type(uint256).max);
+        require(collateral.balanceOf(address(this)) >= totalCollateral, "BorrowerWrappersScript: not enough balance for openTrove");
+        borrowerOperations.openTrove(_maxFee, _debtAmount, totalCollateral);
     }
 
-    function claimSPRewardsAndRecycle(uint _maxFee, address _upperHint, address _lowerHint) external {
-        uint collBalanceBefore = address(this).balance;
-        uint lqtyBalanceBefore = lqtyToken.balanceOf(address(this));
+    function claimSPRewardsAndRecycle(uint _maxFee) external {
+        uint collBalanceBefore = collateral.balanceOf(address(this));
+        uint satoBalanceBefore = satoToken.balanceOf(address(this));
 
         // Claim rewards
         stabilityPool.withdrawFromSP(0);
 
-        uint collBalanceAfter = address(this).balance;
-        uint lqtyBalanceAfter = lqtyToken.balanceOf(address(this));
+        uint collBalanceAfter = collateral.balanceOf(address(this));
+        uint satoBalanceAfter = satoToken.balanceOf(address(this));
         uint claimedCollateral = collBalanceAfter.sub(collBalanceBefore);
 
-        // Add claimed ETH to trove, get more LUSD and stake it into the Stability Pool
+        // Add claimed ETH to trove, get more debt and stake it into the Stability Pool
         if (claimedCollateral > 0) {
             _requireUserHasTrove(address(this));
-            uint LUSDAmount = _getNetLUSDAmount(claimedCollateral);
-            borrowerOperations.adjustTrove{ value: claimedCollateral }(_maxFee, 0, LUSDAmount, true, _upperHint, _lowerHint);
-            // Provide withdrawn LUSD to Stability Pool
-            if (LUSDAmount > 0) {
-                stabilityPool.provideToSP(LUSDAmount, address(0));
+            uint debtAmount = _getNetDebtAmount(claimedCollateral);		
+            collateral.approve(address(borrowerOperations), type(uint256).max);
+            require(collateral.balanceOf(address(this)) >= claimedCollateral, "BorrowerWrappersScript: not enough balance for adjustTrove");
+            borrowerOperations.adjustTrove(_maxFee, claimedCollateral, true, debtAmount, true);
+            // Provide withdrawn debt to Stability Pool
+            if (debtAmount > 0) {
+                stabilityPool.provideToSP(debtAmount, address(0));
             }
         }
 
-        // Stake claimed LQTY
-        uint claimedLQTY = lqtyBalanceAfter.sub(lqtyBalanceBefore);
-        if (claimedLQTY > 0) {
-            lqtyStaking.stake(claimedLQTY);
+        // Stake claimed SATO
+        uint claimedSATO = satoBalanceAfter.sub(satoBalanceBefore);
+        if (claimedSATO > 0) {
+            satoStaking.stake(claimedSATO);
         }
     }
 
-    function claimStakingGainsAndRecycle(uint _maxFee, address _upperHint, address _lowerHint) external {
-        uint collBalanceBefore = address(this).balance;
-        uint lusdBalanceBefore = lusdToken.balanceOf(address(this));
-        uint lqtyBalanceBefore = lqtyToken.balanceOf(address(this));
+    function claimStakingGainsAndRecycle(uint _maxFee) external {
+        uint collBalanceBefore = collateral.balanceOf(address(this));
+        uint debtBalanceBefore = debtToken.balanceOf(address(this));
+        uint satoBalanceBefore = satoToken.balanceOf(address(this));
 
         // Claim gains
-        lqtyStaking.unstake(0);
+        satoStaking.unstake(0);
 
-        uint gainedCollateral = address(this).balance.sub(collBalanceBefore); // stack too deep issues :'(
-        uint gainedLUSD = lusdToken.balanceOf(address(this)).sub(lusdBalanceBefore);
+        uint gainedCollateral = collateral.balanceOf(address(this)).sub(collBalanceBefore); // stack too deep issues :'(
+        uint gainedDebt = debtToken.balanceOf(address(this)).sub(debtBalanceBefore);
 
-        uint netLUSDAmount;
-        // Top up trove and get more LUSD, keeping ICR constant
+        uint netDebtAmount;
+        // Top up trove and get more debt, keeping ICR constant
         if (gainedCollateral > 0) {
             _requireUserHasTrove(address(this));
-            netLUSDAmount = _getNetLUSDAmount(gainedCollateral);
-            borrowerOperations.adjustTrove{ value: gainedCollateral }(_maxFee, 0, netLUSDAmount, true, _upperHint, _lowerHint);
+            netDebtAmount = _getNetDebtAmount(gainedCollateral);	
+            collateral.approve(address(borrowerOperations), type(uint256).max);
+            require(collateral.balanceOf(address(this)) >= gainedCollateral, "BorrowerWrappersScript: not enough balance for adjustTrove");
+            borrowerOperations.adjustTrove(_maxFee, gainedCollateral, true, netDebtAmount, true);
         }
 
-        uint totalLUSD = gainedLUSD.add(netLUSDAmount);
-        if (totalLUSD > 0) {
-            stabilityPool.provideToSP(totalLUSD, address(0));
+        uint totalDebt = gainedDebt.add(netDebtAmount);
+        if (totalDebt > 0) {
+            stabilityPool.provideToSP(totalDebt, address(0));
 
-            // Providing to Stability Pool also triggers LQTY claim, so stake it if any
-            uint lqtyBalanceAfter = lqtyToken.balanceOf(address(this));
-            uint claimedLQTY = lqtyBalanceAfter.sub(lqtyBalanceBefore);
-            if (claimedLQTY > 0) {
-                lqtyStaking.stake(claimedLQTY);
+            // Providing to Stability Pool also triggers SATO claim, so stake it if any
+            uint satoBalanceAfter = satoToken.balanceOf(address(this));
+            uint claimedSATO = satoBalanceAfter.sub(satoBalanceBefore);
+            if (claimedSATO > 0) {
+                satoStaking.stake(claimedSATO);
             }
         }
 
     }
 
-    function _getNetLUSDAmount(uint _collateral) internal returns (uint) {
+    function _getNetDebtAmount(uint _collateral) internal returns (uint) {
         uint price = priceFeed.fetchPrice();
         uint ICR = troveManager.getCurrentICR(address(this), price);
 
-        uint LUSDAmount = _collateral.mul(price).div(ICR);
-        uint borrowingRate = troveManager.getBorrowingRateWithDecay();
-        uint netDebt = LUSDAmount.mul(LiquityMath.DECIMAL_PRECISION).div(LiquityMath.DECIMAL_PRECISION.add(borrowingRate));
+        uint debtAmount = _collateral.mul(price).div(ICR);
+        uint borrowingRate = troveManager.getBorrowingRateWithDecayForBorrower(address(this));
+        uint netDebt = debtAmount.mul(LiquityMath.DECIMAL_PRECISION).div(LiquityMath.DECIMAL_PRECISION.add(borrowingRate));
 
         return netDebt;
     }

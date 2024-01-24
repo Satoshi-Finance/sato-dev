@@ -2,7 +2,7 @@
 
 pragma solidity 0.6.11;
 
-import "../Interfaces/ILQTYToken.sol";
+import "../Interfaces/ISATOToken.sol";
 import "../Interfaces/ICommunityIssuance.sol";
 import "../Dependencies/BaseMath.sol";
 import "../Dependencies/LiquityMath.sol";
@@ -37,25 +37,25 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
     uint constant public ISSUANCE_FACTOR = 999998681227695000;
 
     /* 
-    * The community LQTY supply cap is the starting balance of the Community Issuance contract.
-    * It should be minted to this contract by LQTYToken, when the token is deployed.
+    * The community SATO supply cap is the starting balance of the Community Issuance contract.
+    * It should be minted to this contract by SATOToken, when the token is deployed.
     * 
-    * Set to 32M (slightly less than 1/3) of total LQTY supply.
+    * Set to 32M (slightly less than 1/3) of total SATO supply.
     */
-    uint constant public LQTYSupplyCap = 32e24; // 32 million
+    uint constant public SATOSupplyCap = 32e24; // 32 million
 
-    ILQTYToken public lqtyToken;
+    ISATOToken public satoToken;
 
     address public stabilityPoolAddress;
 
-    uint public totalLQTYIssued;
+    uint public totalSATOIssued;
     uint public immutable deploymentTime;
 
     // --- Events ---
 
-    event LQTYTokenAddressSet(address _lqtyTokenAddress);
+    event SATOTokenAddressSet(address _satoTokenAddress);
     event StabilityPoolAddressSet(address _stabilityPoolAddress);
-    event TotalLQTYIssuedUpdated(uint _totalLQTYIssued);
+    event TotalSATOIssuedUpdated(uint _totalSATOIssued);
 
     // --- Functions ---
 
@@ -65,37 +65,37 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
 
     function setAddresses
     (
-        address _lqtyTokenAddress, 
+        address _satoTokenAddress, 
         address _stabilityPoolAddress
     ) 
         external 
         onlyOwner 
         override 
     {
-        checkContract(_lqtyTokenAddress);
+        checkContract(_satoTokenAddress);
         checkContract(_stabilityPoolAddress);
 
-        lqtyToken = ILQTYToken(_lqtyTokenAddress);
+        satoToken = ISATOToken(_satoTokenAddress);
         stabilityPoolAddress = _stabilityPoolAddress;
 
-        // When LQTYToken deployed, it should have transferred CommunityIssuance's LQTY entitlement
-        uint LQTYBalance = lqtyToken.balanceOf(address(this));
-        assert(LQTYBalance >= LQTYSupplyCap);
+        // When SATOToken deployed, it should have transferred CommunityIssuance's SATO entitlement
+        uint SATOBalance = satoToken.balanceOf(address(this));
+        assert(SATOBalance >= SATOSupplyCap);
 
-        emit LQTYTokenAddressSet(_lqtyTokenAddress);
+        emit SATOTokenAddressSet(_satoTokenAddress);
         emit StabilityPoolAddressSet(_stabilityPoolAddress);
 
         _renounceOwnership();
     }
 
-    function issueLQTY() external override returns (uint) {
+    function issueSATO() external override returns (uint) {
         _requireCallerIsStabilityPool();
 
-        uint latestTotalLQTYIssued = LQTYSupplyCap.mul(_getCumulativeIssuanceFraction()).div(DECIMAL_PRECISION);
-        uint issuance = latestTotalLQTYIssued.sub(totalLQTYIssued);
+        uint latestTotalSATOIssued = _getLatestIssuedSATO();
+        uint issuance = latestTotalSATOIssued.sub(totalSATOIssued);
 
-        totalLQTYIssued = latestTotalLQTYIssued;
-        emit TotalLQTYIssuedUpdated(latestTotalLQTYIssued);
+        totalSATOIssued = latestTotalSATOIssued;
+        emit TotalSATOIssuedUpdated(latestTotalSATOIssued);
         
         return issuance;
     }
@@ -103,7 +103,7 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
     /* Gets 1-f^t    where: f < 1
 
     f: issuance factor that determines the shape of the curve
-    t:  time passed since last LQTY issuance event  */
+    t:  time passed since last SATO issuance event  */
     function _getCumulativeIssuanceFraction() internal view returns (uint) {
         // Get the time passed since deployment
         uint timePassedInMinutes = block.timestamp.sub(deploymentTime).div(SECONDS_IN_ONE_MINUTE);
@@ -118,10 +118,19 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
         return cumulativeIssuanceFraction;
     }
 
-    function sendLQTY(address _account, uint _LQTYamount) external override {
+    function sendSATO(address _account, uint _amount) external override {
         _requireCallerIsStabilityPool();
 
-        lqtyToken.transfer(_account, _LQTYamount);
+        satoToken.transfer(_account, _amount);
+    }
+	
+    function _getLatestIssuedSATO() internal view returns(uint256){
+        return SATOSupplyCap.mul(_getCumulativeIssuanceFraction()).div(DECIMAL_PRECISION);
+    }
+	
+    function getSATOYetToIssue() public override view returns (uint256) {
+        uint latestTotalSATOIssued = _getLatestIssuedSATO();
+        return latestTotalSATOIssued >= SATOSupplyCap? 0 : SATOSupplyCap.sub(latestTotalSATOIssued);
     }
 
     // --- 'require' functions ---

@@ -9,23 +9,23 @@ const timeValues = testHelpers.TimeValues
 const dec = th.dec
 
 
-const logLQTYBalanceAndError = (LQTYBalance_A, expectedLQTYBalance_A) => {
+const logSATOBalanceAndError = (SATOBalance_A, expectedSATOBalance_A) => {
   console.log(
-    `Expected final balance: ${expectedLQTYBalance_A}, \n
-    Actual final balance: ${LQTYBalance_A}, \n
-    Abs. error: ${expectedLQTYBalance_A.sub(LQTYBalance_A)}`
+    `Expected final balance: ${expectedSATOBalance_A}, \n
+    Actual final balance: ${SATOBalance_A}, \n
+    Abs. error: ${expectedSATOBalance_A.sub(SATOBalance_A)}`
   )
 }
 
-const repeatedlyIssueLQTY = async (stabilityPool, timeBetweenIssuances, duration) => {
+const repeatedlyIssueSATO = async (stabilityPool, timeBetweenIssuances, duration) => {
   const startTimestamp = th.toBN(await th.getLatestBlockTimestamp(web3))
   let timePassed = 0
 
-  // while current time < 1 month from deployment, issue LQTY every minute
+  // while current time < 1 month from deployment, issue SATO every minute
   while (timePassed < duration) {
     // console.log(`timePassed: ${timePassed}`)
     await th.fastForwardTime(timeBetweenIssuances, web3.currentProvider)
-    await stabilityPool._unprotectedTriggerLQTYIssuance()
+    await stabilityPool._unprotectedTriggerSATOIssuance()
 
     const currentTimestamp = th.toBN(await th.getLatestBlockTimestamp(web3))
     timePassed = currentTimestamp.sub(startTimestamp)
@@ -33,12 +33,13 @@ const repeatedlyIssueLQTY = async (stabilityPool, timeBetweenIssuances, duration
 }
 
 
-contract('LQTY community issuance arithmetic tests', async accounts => {
+contract('SATO community issuance arithmetic tests', async accounts => {
   let contracts
   let borrowerOperations
   let communityIssuanceTester
-  let lqtyToken
+  let satoToken
   let stabilityPool
+  let totalSATOForCommunity
 
   const [owner, alice, frontEnd_1] = accounts;
 
@@ -50,19 +51,20 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
 
   beforeEach(async () => {
     contracts = await deploymentHelper.deployLiquityCore()
-    const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(bountyAddress, lpRewardsAddress, multisig)
+    const SATOContracts = await deploymentHelper.deploySATOTesterContractsHardhat(bountyAddress, lpRewardsAddress, multisig)
     contracts.stabilityPool = await StabilityPool.new()
-    contracts = await deploymentHelper.deployLUSDToken(contracts)
+    contracts = await deploymentHelper.deployDebtToken(contracts)
 
     stabilityPool = contracts.stabilityPool
     borrowerOperations = contracts.borrowerOperations
 
-    lqtyToken = LQTYContracts.lqtyToken
-    communityIssuanceTester = LQTYContracts.communityIssuance
+    satoToken = SATOContracts.satoToken
+    communityIssuanceTester = SATOContracts.communityIssuance
+    totalSATOForCommunity = await communityIssuanceTester.SATOSupplyCap()
 
-    await deploymentHelper.connectLQTYContracts(LQTYContracts)
-    await deploymentHelper.connectCoreContracts(contracts, LQTYContracts)
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, contracts)
+    await deploymentHelper.connectSATOContracts(SATOContracts)
+    await deploymentHelper.connectCoreContracts(contracts, SATOContracts)
+    await deploymentHelper.connectSATOContractsToCore(SATOContracts, contracts)
   })
 
   // Accuracy tests
@@ -70,7 +72,7 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
    // progress time 1 week 
     await th.fastForwardTime(timeValues.MINUTES_IN_ONE_WEEK, web3.currentProvider)
 
-    await communityIssuanceTester.unprotectedIssueLQTY()
+    await communityIssuanceTester.unprotectedIssueSATO()
    
     const issuanceFractionBefore = await communityIssuanceTester.getCumulativeIssuanceFraction()
     assert.isTrue(issuanceFractionBefore.gt(th.toBN('0')))
@@ -109,7 +111,7 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
   }
 
   it("Cumulative issuance fraction is 0.0000013 after a minute", async () => {
-    // console.log(`supply cap: ${await communityIssuanceTester.LQTYSupplyCap()}`)
+    // console.log(`supply cap: ${await communityIssuanceTester.SATOSupplyCap()}`)
 
     const initialIssuanceFraction = await communityIssuanceTester.getCumulativeIssuanceFraction()
     assert.equal(initialIssuanceFraction, 0)
@@ -423,32 +425,36 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
 
    // Error tolerance: 1e-3, i.e. 1/1000th of a token
 
-  it("Total LQTY tokens issued is 42.20 after a minute", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 42.20 after a minute", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_MINUTE)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '42200713760820460000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '42200713760820460000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 2,531.94 after an hour", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 2,531.94 after an hour", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
 
@@ -456,24 +462,28 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '2531944322115010000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '2531944322115010000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 60,711.40 after a day", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 60,711.40 after a day", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
 
@@ -481,24 +491,28 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '60711403150133240000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '60711403150133240000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 422,568.60 after a week", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 422,568.60 after a week", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
 
@@ -506,24 +520,28 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '422568600980110200000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '422568600980110200000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 1,772,113.21 after a month", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 1,772,113.21 after a month", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
 
@@ -531,236 +549,277 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '1772113218814930000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '1772113218814930000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 5,027,363.22 after 3 months", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 5,027,363.22 after 3 months", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_MONTH * 3)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '5027363224065180000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '5027363224065180000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 9,264,902.04 after 6 months", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 9,264,902.04 after 6 months", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_MONTH * 6)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '9264902042296516000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '9264902042296516000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 16,000,000 after a year", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 16,000,000 after a year", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '16000000000000000000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '16000000000000000000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 24,000,000 after 2 years", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 24,000,000 after 2 years", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 2)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '24000000000000000000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '24000000000000000000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 28,000,000 after 3 years", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 28,000,000 after 3 years", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 3)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '28000000000000000000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '28000000000000000000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 30,000,000 after 4 years", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 30,000,000 after 4 years", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 4)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '30000000000000000000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '30000000000000000000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 31,968,750 after 10 years", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 31,968,750 after 10 years", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 10)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '31968750000000000000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '31968750000000000000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 31,999,969.48 after 20 years", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 31,999,969.48 after 20 years", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 20)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '31999969482421880000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '31999969482421880000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
   })
 
-  it("Total LQTY tokens issued is 31,999,999.97 after 30 years", async () => {
-    const initialIssuance = await communityIssuanceTester.totalLQTYIssued()
+  it("Total SATO tokens issued is 31,999,999.97 after 30 years", async () => {
+    const initialIssuance = await communityIssuanceTester.totalSATOIssued()
     assert.equal(initialIssuance, 0)
 
     const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 30)
     // Fast forward time
     await th.fastForwardTime(duration, web3.currentProvider)
 
-    // Issue LQTY
-    await communityIssuanceTester.unprotectedIssueLQTY()
-    const totalLQTYIssued = await communityIssuanceTester.totalLQTYIssued()
-    const expectedTotalLQTYIssued = '31999999970197680000000000'
+    // Issue SATO
+    const totalSATOYetToIssue = await communityIssuanceTester.getSATOYetToIssue()
+    await communityIssuanceTester.unprotectedIssueSATO()
+    const totalSATOIssued = await communityIssuanceTester.totalSATOIssued()
+    const expectedTotalSATOIssued = '31999999970197680000000000'
 
-    const absError = th.toBN(expectedTotalLQTYIssued).sub(totalLQTYIssued)
+    const absError = th.toBN(expectedTotalSATOIssued).sub(totalSATOIssued)
     // console.log(
     //   `time since deployment: ${duration}, 
-    //    totalLQTYIssued: ${totalLQTYIssued},  
-    //    expectedTotalLQTYIssued: ${expectedTotalLQTYIssued},
+    //    totalSATOIssued: ${totalSATOIssued},  
+    //    expectedTotalSATOIssued: ${expectedTotalSATOIssued},
     //    abs. error: ${absError}`
     // )
-
-    assert.isAtMost(th.getDifference(totalLQTYIssued, expectedTotalLQTYIssued), 1000000000000000)
+	  
+    let _remainingSATO = totalSATOForCommunity.sub(totalSATOIssued)
+    console.log('_remainingSATO=' + _remainingSATO + ',totalSATOYetToIssue=' + totalSATOYetToIssue)
+    assert.isAtMost(th.getDifference(_remainingSATO, totalSATOYetToIssue), 1000000000000000)
+    assert.isAtMost(th.getDifference(totalSATOIssued, expectedTotalSATOIssued), 1000000000000000)
+	
   })
 
   /* ---  
@@ -768,137 +827,20 @@ contract('LQTY community issuance arithmetic tests', async accounts => {
   
   Slow tests are skipped.
   --- */
-
-  // TODO: Convert to 25mil issuance schedule
-  it.skip("Frequent token issuance: issuance event every year, for 30 years", async () => {
-    // Register front end with kickback rate = 100%
-    await stabilityPool.registerFrontEnd(dec(1, 18), { from: frontEnd_1 })
-
-    // Alice opens trove and deposits to SP
-    await borrowerOperations.openTrove(th._100pct, dec(1, 18), alice, alice, { from: alice, value: dec(1, 'ether') })
-    await stabilityPool.provideToSP(dec(1, 18), frontEnd_1, { from: alice })
-
-    assert.isTrue(await stabilityPool.isEligibleForLQTY(alice))
-
-    const timeBetweenIssuances = timeValues.SECONDS_IN_ONE_YEAR
-    const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 30)
-
-    await repeatedlyIssueLQTY(stabilityPool, timeBetweenIssuances, duration)
-
-    // Depositor withdraws their deposit and accumulated LQTY
-    await stabilityPool.withdrawFromSP(dec(1, 18), { from: alice })
-
-    const LQTYBalance_A = await lqtyToken.balanceOf(alice)
-    const expectedLQTYBalance_A = th.toBN('33333333302289200000000000')
-    const diff = expectedLQTYBalance_A.sub(LQTYBalance_A)
-
-    // logLQTYBalanceAndError(LQTYBalance_A, expectedLQTYBalance_A)
-
-    // Check the actual balance differs by no more than 1e18 (i.e. 1 token) from the expected balance
-    assert.isTrue(diff.lte(th.toBN(dec(1, 18))))
-  })
   /*  Results:
   
   Expected final balance: 33333333302289200000000000,
   Actual final balance: 33333333302289247499999999,
   Abs. error: -47499999999 */
-
-
-    // TODO: Convert to 25mil issuance schedule
-  it.skip("Frequent token issuance: issuance event every day, for 30 years", async () => {
-    // Register front end with kickback rate = 100%
-    await stabilityPool.registerFrontEnd(dec(1, 18), { from: frontEnd_1 })
-
-    // Alice opens trove and deposits to SP
-    await borrowerOperations.openTrove(th._100pct, dec(1, 18), alice, alice, { from: alice, value: dec(1, 'ether') })
-    await stabilityPool.provideToSP(dec(1, 18), frontEnd_1, { from: alice })
-
-    assert.isTrue(await stabilityPool.isEligibleForLQTY(alice))
-
-    const timeBetweenIssuances = timeValues.SECONDS_IN_ONE_DAY
-    const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR * 30)
-
-    await repeatedlyIssueLQTY(stabilityPool, timeBetweenIssuances, duration)
-
-    // Depositor withdraws their deposit and accumulated LQTY
-    await stabilityPool.withdrawFromSP(dec(1, 18), { from: alice })
-
-    const LQTYBalance_A = await lqtyToken.balanceOf(alice)
-    const expectedLQTYBalance_A = th.toBN('33333333302289200000000000')
-    const diff = expectedLQTYBalance_A.sub(LQTYBalance_A)
-
-    // logLQTYBalanceAndError(LQTYBalance_A, expectedLQTYBalance_A)
-
-    // Check the actual balance differs by no more than 1e18 (i.e. 1 token) from the expected balance
-    assert.isTrue(diff.lte(th.toBN(dec(1, 18))))
-  })
   /* Results:
 
   Expected final balance: 33333333302289200000000000,
   Actual final balance: 33333333302297188866666666,
   Abs. error: -7988866666666  */
-
-  // TODO: Convert to 25mil issuance schedule
-  it.skip("Frequent token issuance: issuance event every minute, for 1 month", async () => {
-    // Register front end with kickback rate = 100%
-    await stabilityPool.registerFrontEnd(dec(1, 18), { from: frontEnd_1 })
-
-    // Alice opens trove and deposits to SP
-    await borrowerOperations.openTrove(th._100pct, dec(1, 18), alice, alice, { from: alice, value: dec(1, 'ether') })
-    await stabilityPool.provideToSP(dec(1, 18), frontEnd_1, { from: alice })
-
-    assert.isTrue(await stabilityPool.isEligibleForLQTY(alice))
-
-    const timeBetweenIssuances = timeValues.SECONDS_IN_ONE_MINUTE
-    const duration = await getDuration(timeValues.SECONDS_IN_ONE_MONTH)
-
-    await repeatedlyIssueLQTY(stabilityPool, timeBetweenIssuances, duration)
-
-    // Depositor withdraws their deposit and accumulated LQTY
-    await stabilityPool.withdrawFromSP(dec(1, 18), { from: alice })
-
-    const LQTYBalance_A = await lqtyToken.balanceOf(alice)
-    const expectedLQTYBalance_A = th.toBN('1845951269598880000000000')
-    const diff = expectedLQTYBalance_A.sub(LQTYBalance_A)
-
-    // logLQTYBalanceAndError(LQTYBalance_A, expectedLQTYBalance_A)
-
-    // Check the actual balance differs by no more than 1e18 (i.e. 1 token) from the expected balance
-    assert.isTrue(diff.lte(th.toBN(dec(1, 18))))
-  })
   /* Results:
 
   Expected final balance: 1845951269598880000000000,
   Actual final balance: 1845951269564420199999999,
   Abs. error: 34459800000001
   */
-
-  // TODO: Convert to 25mil issuance schedule
-  it.skip("Frequent token issuance: issuance event every minute, for 1 year", async () => {
-    // Register front end with kickback rate = 100%
-    await stabilityPool.registerFrontEnd(dec(1, 18), { from: frontEnd_1 })
-
-    // Alice opens trove and deposits to SP
-    await borrowerOperations.openTrove(th._100pct, dec(1, 18), alice, alice, { from: alice, value: dec(1, 'ether') })
-    await stabilityPool.provideToSP(dec(1, 18), frontEnd_1, { from: alice })
-
-    assert.isTrue(await stabilityPool.isEligibleForLQTY(alice))
-
-    const timeBetweenIssuances = timeValues.SECONDS_IN_ONE_MINUTE
-    const duration = await getDuration(timeValues.SECONDS_IN_ONE_YEAR)
-
-    await repeatedlyIssueLQTY(stabilityPool, timeBetweenIssuances, duration)
-
-    // Depositor withdraws their deposit and accumulated LQTY
-    await stabilityPool.withdrawFromSP(dec(1, 18), { from: alice })
-
-    const LQTYBalance_A = await lqtyToken.balanceOf(alice)
-    const expectedLQTYBalance_A = th.toBN('1845951269598880000000000')
-    const diff = expectedLQTYBalance_A.sub(LQTYBalance_A)
-
-    // logLQTYBalanceAndError(LQTYBalance_A, expectedLQTYBalance_A)
-
-    // Check the actual balance differs by no more than 1e18 (i.e. 1 token) from the expected balance
-    assert.isTrue(diff.lte(th.toBN(dec(1, 18))))
-  })
 })

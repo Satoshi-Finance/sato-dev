@@ -47,14 +47,13 @@ contract BorrowerOperationsTester is BorrowerOperations {
     function callInternalAdjustLoan
     (
         address _borrower, 
-        uint _collWithdrawal, 
+        uint _collChange, 
+        bool _isCollIncrease,
         uint _debtChange, 
-        bool _isDebtIncrease, 
-        address _upperHint,
-        address _lowerHint)
+        bool _isDebtIncrease)
         external 
     {
-        _adjustTrove(_borrower, _collWithdrawal, _debtChange, _isDebtIncrease, _upperHint, _lowerHint, 0);
+        _adjustTrove(_borrower, _collChange, _isCollIncrease, _debtChange, _isDebtIncrease, DECIMAL_PRECISION);
     }
 
 

@@ -22,8 +22,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
   let coreContracts
 
   let priceFeed
-  let lusdToken
-  let sortedTroves
+  let debtToken
   let troveManager
   let nameRegistry
   let activePool
@@ -32,20 +31,19 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
   let functionCaller
   let borrowerOperations
 
-  let lqtyStaking
-  let lqtyToken
+  let satoStaking
+  let satoToken
   let communityIssuance
   let lockupContractFactory
 
   before(async () => {
     coreContracts = await deploymentHelper.deployLiquityCore()
     coreContracts.troveManager = await TroveManagerTester.new()
-    coreContracts = await deploymentHelper.deployLUSDTokenTester(coreContracts)
-    const LQTYContracts = await deploymentHelper.deployLQTYTesterContractsHardhat(bountyAddress, lpRewardsAddress, multisig)
+    coreContracts = await deploymentHelper.deployDebtTokenTester(coreContracts)
+    const SATOContracts = await deploymentHelper.deploySATOTesterContractsHardhat(bountyAddress, lpRewardsAddress, multisig)
     
     priceFeed = coreContracts.priceFeed
-    lusdToken = coreContracts.lusdToken
-    sortedTroves = coreContracts.sortedTroves
+    debtToken = coreContracts.debtToken
     troveManager = coreContracts.troveManager
     nameRegistry = coreContracts.nameRegistry
     activePool = coreContracts.activePool
@@ -54,14 +52,14 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     functionCaller = coreContracts.functionCaller
     borrowerOperations = coreContracts.borrowerOperations
 
-    lqtyStaking = LQTYContracts.lqtyStaking
-    lqtyToken = LQTYContracts.lqtyToken
-    communityIssuance = LQTYContracts.communityIssuance
-    lockupContractFactory = LQTYContracts.lockupContractFactory
+    satoStaking = SATOContracts.satoStaking
+    satoToken = SATOContracts.satoToken
+    communityIssuance = SATOContracts.communityIssuance
+    lockupContractFactory = SATOContracts.lockupContractFactory
 
-    await deploymentHelper.connectLQTYContracts(LQTYContracts)
-    await deploymentHelper.connectCoreContracts(coreContracts, LQTYContracts)
-    await deploymentHelper.connectLQTYContractsToCore(LQTYContracts, coreContracts)
+    await deploymentHelper.connectSATOContracts(SATOContracts)
+    await deploymentHelper.connectCoreContracts(coreContracts, SATOContracts)
+    await deploymentHelper.connectSATOContractsToCore(SATOContracts, coreContracts)
 
     for (account of accounts.slice(0, 10)) {
       await th.openTrove(coreContracts, { extraLUSDAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: account } })
@@ -70,15 +68,15 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     const expectedCISupplyCap = '32000000000000000000000000' // 32mil
 
     // Check CI has been properly funded
-    const bal = await lqtyToken.balanceOf(communityIssuance.address)
+    const bal = await satoToken.balanceOf(communityIssuance.address)
     assert.equal(bal, expectedCISupplyCap)
   })
 
   describe('BorrowerOperations', async accounts => { 
-    it("moveETHGainToTrove(): reverts when called by an account that is not StabilityPool", async () => {
+    it("moveCollGainToTrove(): reverts when called by an account that is not StabilityPool", async () => {
       // Attempt call from alice
       try {
-        const tx1= await borrowerOperations.moveETHGainToTrove(bob, bob, bob, { from: bob })
+        const tx1= await borrowerOperations.moveCollGainToTrove(bob, 1, { from: bob })
       } catch (err) {
          assert.include(err.message, "revert")
         // assert.include(err.message, "BorrowerOps: Caller is not Stability Pool")
@@ -257,17 +255,50 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
       }
     })
 
-    // fallback (payment)	
-    it("fallback(): reverts when called by an account that is not Borrower Operations nor Default Pool", async () => {
+    it("increaseRedemptionDebt(): reverts when called by an account that is not TroveM", async () => {
       // Attempt call from alice
       try {
-        const txAlice = await web3.eth.sendTransaction({ from: alice, to: activePool.address, value: 100 })
+        const txAlice = await activePool.increaseRedemptionDebt(100, { from: alice })
         
       } catch (err) {
         assert.include(err.message, "revert")
-        assert.include(err.message, "ActivePool: Caller is neither BO nor Default Pool")
+        assert.include(err.message, "Caller is not TroveManager")
       }
     })
+	
+    it("decreaseRedemptionDebt(): reverts when called by an account that is not TroveM", async () => {
+      // Attempt call from alice
+      try {
+        const txAlice = await activePool.decreaseRedemptionDebt(100, { from: alice })
+        
+      } catch (err) {
+        assert.include(err.message, "revert")
+        assert.include(err.message, "Caller is not TroveManager")
+      }
+    })
+	
+    it("sendDebtFromRedemption(): reverts when called by an account that is not TroveM", async () => {
+      // Attempt call from alice
+      try {
+        const txAlice = await activePool.sendDebtFromRedemption(alice, 100, { from: alice })
+        
+      } catch (err) {
+        assert.include(err.message, "revert")
+        assert.include(err.message, "Caller is not TroveManager")
+      }
+    })
+
+    // receiveCollateral	
+    it("receiveCollateral(): reverts when called by an account that is not BO or DefaultPool", async () => {
+      // Attempt call from alice
+      try {
+        const txAlice = await activePool.receiveCollateral(100, { from: alice })        
+      } catch (err) {
+        assert.include(err.message, "revert")
+        assert.include(err.message, "Caller is neither BO nor Default Pool")
+      }
+    })	
+	
   })
 
   describe('DefaultPool', async accounts => {
@@ -307,17 +338,17 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
       }
     })
 
-    // fallback (payment)	
-    it("fallback(): reverts when called by an account that is not the Active Pool", async () => {
+    // receiveCollateral	
+    it("receiveCollateral(): reverts when called by an account that is not ActivePool", async () => {
       // Attempt call from alice
       try {
-        const txAlice = await web3.eth.sendTransaction({ from: alice, to: defaultPool.address, value: 100 })
-        
+        const txAlice = await defaultPool.receiveCollateral(100, { from: alice })        
       } catch (err) {
         assert.include(err.message, "revert")
-        assert.include(err.message, "DefaultPool: Caller is not the ActivePool")
+        assert.include(err.message, "Caller is not the ActivePool")
       }
-    })
+    })	
+	
   })
 
   describe('StabilityPool', async accounts => {
@@ -337,25 +368,25 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
 
     // --- onlyActivePool ---
 
-    // fallback (payment)	
-    it("fallback(): reverts when called by an account that is not the Active Pool", async () => {
+    // receiveCollateral	
+    it("receiveCollateral(): reverts when called by an account that is not ActivePool", async () => {
       // Attempt call from alice
       try {
-        const txAlice = await web3.eth.sendTransaction({ from: alice, to: stabilityPool.address, value: 100 })
-        
+        const txAlice = await stabilityPool.receiveCollateral(100, { from: alice })        
       } catch (err) {
         assert.include(err.message, "revert")
-        assert.include(err.message, "StabilityPool: Caller is not ActivePool")
+        assert.include(err.message, "Caller is not ActivePool")
       }
-    })
+    })	
+	
   })
 
-  describe('LUSDToken', async accounts => {
+  describe('debtToken', async accounts => {
 
     //    mint
     it("mint(): reverts when called by an account that is not BorrowerOperations", async () => {
       // Attempt call from alice
-      const txAlice = lusdToken.mint(bob, 100, { from: alice })
+      const txAlice = debtToken.mint(bob, 100, { from: alice })
       await th.assertRevert(txAlice, "Caller is not BorrowerOperations")
     })
 
@@ -363,7 +394,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     it("burn(): reverts when called by an account that is not BO nor TroveM nor SP", async () => {
       // Attempt call from alice
       try {
-        const txAlice = await lusdToken.burn(bob, 100, { from: alice })
+        const txAlice = await debtToken.burn(bob, 100, { from: alice })
         
       } catch (err) {
         assert.include(err.message, "revert")
@@ -375,7 +406,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     it("sendToPool(): reverts when called by an account that is not StabilityPool", async () => {
       // Attempt call from alice
       try {
-        const txAlice = await lusdToken.sendToPool(bob, activePool.address, 100, { from: alice })
+        const txAlice = await debtToken.sendToPool(bob, activePool.address, 100, { from: alice })
         
       } catch (err) {
         assert.include(err.message, "revert")
@@ -387,7 +418,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     it("returnFromPool(): reverts when called by an account that is not TroveManager nor StabilityPool", async () => {
       // Attempt call from alice
       try {
-        const txAlice = await lusdToken.returnFromPool(activePool.address, bob, 100, { from: alice })
+        const txAlice = await debtToken.returnFromPool(activePool.address, bob, 100, { from: alice })
         
       } catch (err) {
         assert.include(err.message, "revert")
@@ -396,51 +427,10 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     })
   })
 
-  describe('SortedTroves', async accounts => {
-    // --- onlyBorrowerOperations ---
-    //     insert
-    it("insert(): reverts when called by an account that is not BorrowerOps or TroveM", async () => {
-      // Attempt call from alice
-      try {
-        const txAlice = await sortedTroves.insert(bob, '150000000000000000000', bob, bob, { from: alice })
-        
-      } catch (err) {
-        assert.include(err.message, "revert")
-        assert.include(err.message, " Caller is neither BO nor TroveM")
-      }
-    })
-
-    // --- onlyTroveManager ---
-    // remove
-    it("remove(): reverts when called by an account that is not TroveManager", async () => {
-      // Attempt call from alice
-      try {
-        const txAlice = await sortedTroves.remove(bob, { from: alice })
-        
-      } catch (err) {
-        assert.include(err.message, "revert")
-        assert.include(err.message, " Caller is not the TroveManager")
-      }
-    })
-
-    // --- onlyTroveMorBM ---
-    // reinsert
-    it("reinsert(): reverts when called by an account that is neither BorrowerOps nor TroveManager", async () => {
-      // Attempt call from alice
-      try {
-        const txAlice = await sortedTroves.reInsert(bob, '150000000000000000000', bob, bob, { from: alice })
-        
-      } catch (err) {
-        assert.include(err.message, "revert")
-        assert.include(err.message, "Caller is neither BO nor TroveM")
-      }
-    })
-  })
-
   describe('LockupContract', async accounts => {
-    it("withdrawLQTY(): reverts when caller is not beneficiary", async () => {
+    it("withdrawSATO(): reverts when caller is not beneficiary", async () => {
       // deploy new LC with Carol as beneficiary
-      const unlockTime = (await lqtyToken.getDeploymentStartTime()).add(toBN(timeValues.SECONDS_IN_ONE_YEAR))
+      const unlockTime = (await satoToken.getDeploymentStartTime()).add(toBN(timeValues.SECONDS_IN_ONE_YEAR))
       const deployedLCtx = await lockupContractFactory.deployLockupContract(
         carol, 
         unlockTime,
@@ -448,30 +438,38 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
 
       const LC = await th.getLCFromDeploymentTx(deployedLCtx)
 
-      // LQTY Multisig funds the LC
-      await lqtyToken.transfer(LC.address, dec(100, 18), { from: multisig })
+      // SATO Multisig funds the LC
+      await satoToken.transfer(LC.address, dec(100, 18), { from: multisig })
 
       // Fast-forward one year, so that beneficiary can withdraw
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
-      // Bob attempts to withdraw LQTY
+      // Bob attempts to withdraw SATO
       try {
-        const txBob = await LC.withdrawLQTY({ from: bob })
+        const txBob = await LC.withdrawSATO({ from: bob })
         
       } catch (err) {
         assert.include(err.message, "revert")
       }
 
       // Confirm beneficiary, Carol, can withdraw
-      const txCarol = await LC.withdrawLQTY({ from: carol })
+      const txCarol = await LC.withdrawSATO({ from: carol })
       assert.isTrue(txCarol.receipt.status)
     })
   })
 
-  describe('LQTYStaking', async accounts => {
+  describe('SATOStaking', async accounts => {
     it("increaseF_LUSD(): reverts when caller is not TroveManager", async () => {
       try {
-        const txAlice = await lqtyStaking.increaseF_LUSD(dec(1, 18), { from: alice })
+        const txAlice = await satoStaking.increaseF_LUSD(dec(1, 18), { from: alice })
+        
+      } catch (err) {
+        assert.include(err.message, "revert")
+      }
+    })
+    it("increaseF_ETH(): reverts when caller is not TroveManager nor ActivePool", async () => {
+      try {
+        const txAlice = await satoStaking.increaseF_ETH(dec(1, 18), { from: alice })
         
       } catch (err) {
         assert.include(err.message, "revert")
@@ -479,14 +477,14 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
     })
   })
 
-  describe('LQTYToken', async accounts => {
-    it("sendToLQTYStaking(): reverts when caller is not the LQTYSstaking", async () => {
-      // Check multisig has some LQTY
-      assert.isTrue((await lqtyToken.balanceOf(multisig)).gt(toBN('0')))
+  describe('SATOToken', async accounts => {
+    it("sendToStaking(): reverts when caller is not the SATOSstaking", async () => {
+      // Check multisig has some SATO
+      assert.isTrue((await satoToken.balanceOf(multisig)).gt(toBN('0')))
 
       // multisig tries to call it
       try {
-        const tx = await lqtyToken.sendToLQTYStaking(multisig, 1, { from: multisig })
+        const tx = await satoToken.sendToStaking(multisig, 1, { from: multisig })
       } catch (err) {
         assert.include(err.message, "revert")
       }
@@ -494,13 +492,13 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
       // FF >> time one year
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
-      // Owner transfers 1 LQTY to bob
-      await lqtyToken.transfer(bob, dec(1, 18), { from: multisig })
-      assert.equal((await lqtyToken.balanceOf(bob)), dec(1, 18))
+      // Owner transfers 1 SATO to bob
+      await satoToken.transfer(bob, dec(1, 18), { from: multisig })
+      assert.equal((await satoToken.balanceOf(bob)), dec(1, 18))
 
       // Bob tries to call it
       try {
-        const tx = await lqtyToken.sendToLQTYStaking(bob, dec(1, 18), { from: bob })
+        const tx = await satoToken.sendToStaking(bob, dec(1, 18), { from: bob })
       } catch (err) {
         assert.include(err.message, "revert")
       }
@@ -508,18 +506,18 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
   })
 
   describe('CommunityIssuance', async accounts => {
-    it("sendLQTY(): reverts when caller is not the StabilityPool", async () => {
-      const tx1 = communityIssuance.sendLQTY(alice, dec(100, 18), {from: alice})
-      const tx2 = communityIssuance.sendLQTY(bob, dec(100, 18), {from: alice})
-      const tx3 = communityIssuance.sendLQTY(stabilityPool.address, dec(100, 18), {from: alice})
+    it("sendSATO(): reverts when caller is not the StabilityPool", async () => {
+      const tx1 = communityIssuance.sendSATO(alice, dec(100, 18), {from: alice})
+      const tx2 = communityIssuance.sendSATO(bob, dec(100, 18), {from: alice})
+      const tx3 = communityIssuance.sendSATO(stabilityPool.address, dec(100, 18), {from: alice})
      
       assertRevert(tx1)
       assertRevert(tx2)
       assertRevert(tx3)
     })
 
-    it("issueLQTY(): reverts when caller is not the StabilityPool", async () => {
-      const tx1 = communityIssuance.issueLQTY({from: alice})
+    it("issueSATO(): reverts when caller is not the StabilityPool", async () => {
+      const tx1 = communityIssuance.issueSATO({from: alice})
 
       assertRevert(tx1)
     })

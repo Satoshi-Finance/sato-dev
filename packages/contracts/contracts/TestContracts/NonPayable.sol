@@ -21,4 +21,8 @@ contract NonPayable {
     receive() external payable {
         require(isPayable);
     }
+	
+    fallback() external {
+	
+    }
 }

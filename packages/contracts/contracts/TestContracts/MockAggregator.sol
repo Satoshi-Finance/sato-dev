@@ -3,9 +3,10 @@
 pragma solidity 0.6.11;
 
 import "../Dependencies/AggregatorV3Interface.sol";
+import "../Dependencies/IBinanceOracle.sol";
 import "../Dependencies/console.sol";
 
-contract MockAggregator is AggregatorV3Interface {
+contract MockAggregator is AggregatorV3Interface, IBinanceOracle {
     
     // storage variables to hold the mock data
     uint8 private decimalsVal = 8;
@@ -70,6 +71,27 @@ contract MockAggregator is AggregatorV3Interface {
         if (decimalsRevert) {require(1== 0, "decimals reverted");}
 
         return decimalsVal;
+    }
+
+    function decimals(address _base, address _quote) external override view returns (uint8) {
+        return 8;
+    }
+
+    function latestRoundData(address _base, address _quote)
+        external
+        override
+        view
+    returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    ) 
+    {    
+        if (latestRevert) { require(1== 0, "latestRoundData reverted");}
+
+        return (latestRoundId, price, 0, updateTime, 0); 
     }
 
     function latestRoundData()
