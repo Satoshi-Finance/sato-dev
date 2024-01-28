@@ -1759,3 +1759,12 @@ THE LIQUITY PROTOCOL SOFTWARE HAS BEEN PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
 There are no official frontend operators, and the use of any frontend is made by users at their own risk. To assess the trustworthiness of a frontend operator lies in the sole responsibility of the users and must be made carefully.
 
 User is solely responsible for complying with applicable law when interacting (in particular, when using ETH, LUSD, LQTY or other Token) with the Liquity Protocol Software whatsoever. 
+
+## Major modifications to original Liquity codebase
+
+### Removal of `SortedList.sol` (no more ordering for Troves), `GasPool.sol`(no more gas reserve for Troves), `HintHelper.sol`(no more headache for finding a proper Trove insert position)
+### Change the redemption behavior by distributing redeemed debt(and collateral paid out) to all Troves instead of selecting those Troves with lower ICRs (less gas consumption, no more high-ICR competition and encourage Trove usage for capital efficiency). The functionality to support new redemption behavior is coded in `TroveManager.sol`, such as the functions `_applyRedemptionAccounting()` and `_updateRedemptionShare()`. More math proof detailed in the [docs](https://satoshi-finance.github.io/satofi.github.io/Efficient%20Redemption/#math-for-redemption)
+### Introduce a new ecosystem actor called `scavenger` to help closing Troves whose debt is below minimum debt requirement due to above new redemption mechanism. The functionality for `scavenger` is coded in `TroveManager.sol`, such as the fuction `scavengeTrove()`
+### Introduce a new premium membership for growth token staking. With this new premium staking, user could be privileged to enjoy some membership benefits such as lower borrowing fee floor. The functionality for premium staking is coded in `SATOStaking.sol`
+### Add [ERC3156](https://eips.ethereum.org/EIPS/eip-3156) feature-compliant support in `ActivePool.sol` for collateral flashloan and the flashloan fee is shared among growth token staking as a new protocol revenue
+### Add support for [Binance Oracle](https://oracle.binance.com/data-feeds/detail/bsc/BTC-USD) in `PriceFeed.sol` as secondary failover if primary oracle(ChainLink) not working
