@@ -139,7 +139,7 @@ contract('SATO Token', async accounts => {
   it('totalSupply(): gets the total supply', async () => {
     const total = (await satoTokenTester.totalSupply()).toString()
    
-    assert.equal(total, dec(100, 24))
+    assert.equal(total, dec(38, 24))
   })
 
   it("name(): returns the token's name", async () => {

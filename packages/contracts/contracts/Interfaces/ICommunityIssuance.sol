@@ -19,4 +19,6 @@ interface ICommunityIssuance {
     function sendSATO(address _account, uint _amount) external;
 	
     function getSATOYetToIssue() external view returns (uint256);
+	
+    function getSATOToIssue() external view returns (uint256);
 }

@@ -24,27 +24,13 @@ import "../Dependencies/console.sol";
 *
 * 2) sendToStaking(): callable only by Liquity core contracts, which move SATO tokens from user -> SATOStaking contract.
 *
-* 3) Supply hard-capped at 100 million
+* 3) Supply hard-capped at 38 million
 *
 * 4) CommunityIssuance and LockupContractFactory addresses are set at deployment
 *
 * 5) The bug bounties / hackathons allocation of 2 million tokens is minted at deployment to an EOA
 
 * 6) 32 million tokens are minted at deployment to the CommunityIssuance contract
-*
-* 7) The LP rewards allocation of (1 + 1/3) million tokens is minted at deployent to a Staking contract
-*
-* 8) (64 + 2/3) million tokens are minted at deployment to the Liquity multisig
-*
-* 9) Until one year from deployment:
-* -Liquity multisig may only transfer() tokens to LockupContracts that have been deployed via & registered in the 
-*  LockupContractFactory 
-* -approve(), increaseAllowance(), decreaseAllowance() revert when called by the multisig
-* -transferFrom() reverts when the multisig is the sender
-* -sendToStaking() reverts when the multisig is the sender, blocking the multisig from staking its SATO.
-* 
-* After one year has passed since deployment of the SATOToken, the restrictions on multisig operations are lifted
-* and the multisig has the same rights as any other address.
 */
 
 contract SATOToken is CheckContract, ISATOToken {
@@ -141,17 +127,9 @@ contract SATOToken is CheckContract, ISATOToken {
         uint depositorsAndFrontEndsEntitlement = _1_MILLION.mul(32); // Allocate 32 million to the algorithmic issuance schedule
         _mint(_communityIssuanceAddress, depositorsAndFrontEndsEntitlement);
 
-        uint _lpRewardsEntitlement = _1_MILLION.mul(4).div(3);  // Allocate 1.33 million for LP rewards
+        uint _lpRewardsEntitlement = _1_MILLION.mul(4);  // Allocate 4 million for LP rewards
         lpRewardsEntitlement = _lpRewardsEntitlement;
         _mint(_lpRewardsAddress, _lpRewardsEntitlement);
-        
-        // Allocate the remainder to the SATO Multisig: (100 - 2 - 32 - 1.33) million = 64.66 million
-        uint multisigEntitlement = _1_MILLION.mul(100)
-            .sub(bountyEntitlement)
-            .sub(depositorsAndFrontEndsEntitlement)
-            .sub(_lpRewardsEntitlement);
-
-        _mint(_multisigAddress, multisigEntitlement);
     }
 
     // --- External functions ---

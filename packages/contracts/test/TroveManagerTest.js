@@ -3934,8 +3934,6 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a redemption made when base rate is non-zero increases the base rate, for negligible time passed", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
 
     await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
 
@@ -4032,8 +4030,6 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a redemption made at zero base rate send a non-zero ETHFee to SATO staking contract", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
 
     await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
 
@@ -4068,8 +4064,6 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a redemption made at zero base increases the ETH-fees-per-SATO-staked in SATO Staking contract", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
 
     await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
 
@@ -4104,8 +4098,6 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a redemption made at a non-zero base rate send a non-zero ETHFee to SATO staking contract", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
 
     await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
 
@@ -4146,8 +4138,7 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a redemption made at a non-zero base rate increases ETH-per-SATO-staked in the staking contract", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
+    await satoStaking.stake(dec(1, 18), { from: bountyAddress })
 
     await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
 
@@ -4189,8 +4180,6 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a redemption sends the ETH remainder (ETHDrawn - ETHFee) to the redeemer", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
 
     const { totalDebt: W_totalDebt } = await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
 
@@ -4241,8 +4230,6 @@ contract('TroveManager', async accounts => {
   it("redeemCollateral(): a full redemption (leaving trove with 0 debt), closes the trove", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-    await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-    await satoStaking.stake(dec(1, 18), { from: multisig })
 
     const { netDebt: W_netDebt } = await openTrove({ ICR: toBN(dec(20, 18)), extraLUSDAmount: dec(10000, 18), extraParams: { from: whale } })
 

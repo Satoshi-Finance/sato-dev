@@ -70,14 +70,6 @@ contract('Deploying the SATO contracts: LCF, CI, SATOStaking, and SATOToken ', a
       assert.equal(lockupContractFactory.address, storedLCFAddress)
     })
 
-    it("Mints the correct SATO amount to the multisig's address: (64.66 million)", async () => {
-      const multisigSATOEntitlement = await satoToken.balanceOf(multisig)
-
-     const twentyThreeSixes = "6".repeat(23)
-      const expectedMultisigEntitlement = "64".concat(twentyThreeSixes).concat("7")
-      assert.equal(multisigSATOEntitlement, expectedMultisigEntitlement)
-    })
-
     it("Mints the correct SATO amount to the CommunityIssuance contract address: 32 million", async () => {
       const communitySATOEntitlement = await satoToken.balanceOf(communityIssuance.address)
       // 32 million as 18-digit decimal
@@ -96,10 +88,8 @@ contract('Deploying the SATO contracts: LCF, CI, SATOStaking, and SATOToken ', a
 
     it("Mints the correct SATO amount to the lpRewardsAddress EOA: 1.33 million", async () => {
       const lpRewardsAddressBal = await satoToken.balanceOf(lpRewardsAddress)
-      // 1.3 million as 18-digit decimal
-      const _1pt33Million = "1".concat("3".repeat(24))
-
-      assert.equal(lpRewardsAddressBal, _1pt33Million)
+      // 4 million as 18-digit decimal
+      assert.equal(lpRewardsAddressBal, dec(4, 24))
     })
   })
 
@@ -142,7 +132,7 @@ contract('Deploying the SATO contracts: LCF, CI, SATOStaking, and SATOToken ', a
       const coreContracts = await deploymentHelper.deployLiquityCore()
 
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.transfer(newCI.address, '31999999999999999999999999', {from: multisig}) // 1e-18 less than CI expects (32 million)
+      await satoToken.transfer(newCI.address, '1999999999999999999999999', {from: bountyAddress}) // 1e-18 less than CI expects (32 million)
 
       try {
         const tx = await newCI.setAddresses(

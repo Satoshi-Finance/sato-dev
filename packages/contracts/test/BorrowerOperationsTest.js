@@ -962,8 +962,6 @@ contract('BorrowerOperations', async accounts => {
     it("withdrawLUSD(): borrowing at non-zero base rate sends LUSD fee to SATO staking contract", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
 
       // Check SATO LUSD balance before == 0
       const satoStaking_LUSDBalance_Before = await debtToken.balanceOf(satoStaking.address)
@@ -998,8 +996,6 @@ contract('BorrowerOperations', async accounts => {
       it("withdrawLUSD(): borrowing at non-zero base records the (drawn debt + fee) on the Trove struct", async () => {
         // time fast-forwards 1 year, and multisig stakes 1 SATO
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-        await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-        await satoStaking.stake(dec(1, 18), { from: multisig })
 
         await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
         await openTrove({ extraLUSDAmount: toBN(dec(30, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
@@ -1036,8 +1032,8 @@ contract('BorrowerOperations', async accounts => {
     it("withdrawLUSD(): Borrowing at non-zero base rate increases the SATO staking contract LUSD fees-per-unit-staked", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
+      await satoToken.unprotectedMint(A, dec(1, 18))
+      await satoStaking.stake(dec(1, 18), { from: A })
 
       // Check SATO contract LUSD fees-per-unit-staked is zero
       const F_LUSD_Before = await satoStaking.F_LUSD()
@@ -1071,8 +1067,6 @@ contract('BorrowerOperations', async accounts => {
     it("withdrawLUSD(): Borrowing at non-zero base rate sends requested amount to the user", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
 
       // Check SATO Staking contract balance before == 0
       const satoStaking_LUSDBalance_Before = await debtToken.balanceOf(satoStaking.address)
@@ -1721,8 +1715,6 @@ contract('BorrowerOperations', async accounts => {
     it("adjustTrove(): borrowing at non-zero base rate sends LUSD fee to SATO staking contract", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
 
       // Check SATO LUSD balance before == 0
       const satoStaking_LUSDBalance_Before = await debtToken.balanceOf(satoStaking.address)
@@ -1756,8 +1748,6 @@ contract('BorrowerOperations', async accounts => {
       it("adjustTrove(): borrowing at non-zero base records the (drawn debt + fee) on the Trove struct", async () => {
         // time fast-forwards 1 year, and multisig stakes 1 SATO
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-        await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-        await satoStaking.stake(dec(1, 18), { from: multisig })
 
         await openTrove({ ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
         await openTrove({ extraLUSDAmount: toBN(dec(30, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
@@ -1795,8 +1785,8 @@ contract('BorrowerOperations', async accounts => {
     it("adjustTrove(): Borrowing at non-zero base rate increases the SATO staking contract LUSD fees-per-unit-staked", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
+      await satoToken.unprotectedMint(A, dec(1, 18))
+      await satoStaking.stake(dec(1, 18), { from: A })
 
       // Check SATO contract LUSD fees-per-unit-staked is zero
       const F_LUSD_Before = await satoStaking.F_LUSD()
@@ -1830,8 +1820,6 @@ contract('BorrowerOperations', async accounts => {
     it("adjustTrove(): Borrowing at non-zero base rate sends requested amount to the user", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
 
       // Check SATO Staking contract balance before == 0
       const satoStaking_LUSDBalance_Before = await debtToken.balanceOf(satoStaking.address)
@@ -3428,8 +3416,6 @@ contract('BorrowerOperations', async accounts => {
     it("openTrove(): borrowing at non-zero base rate sends LUSD fee to SATO staking contract", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
 
       // Check SATO LUSD balance before == 0
       const satoStaking_LUSDBalance_Before = await debtToken.balanceOf(satoStaking.address)
@@ -3463,8 +3449,6 @@ contract('BorrowerOperations', async accounts => {
       it("openTrove(): borrowing at non-zero base records the (drawn debt + fee  + liq. reserve) on the Trove struct", async () => {
         // time fast-forwards 1 year, and multisig stakes 1 SATO
         await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-        await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-        await satoStaking.stake(dec(1, 18), { from: multisig })
 
         await openTrove({ extraLUSDAmount: toBN(dec(10000, 18)), ICR: toBN(dec(10, 18)), extraParams: { from: whale } })
         await openTrove({ extraLUSDAmount: toBN(dec(20000, 18)), ICR: toBN(dec(2, 18)), extraParams: { from: A } })
@@ -3501,8 +3485,8 @@ contract('BorrowerOperations', async accounts => {
     it("openTrove(): Borrowing at non-zero base rate increases the SATO staking contract LUSD fees-per-unit-staked", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
+      await satoToken.unprotectedMint(A, dec(1, 18))
+      await satoStaking.stake(dec(1, 18), { from: A })
 
       // Check SATO contract LUSD fees-per-unit-staked is zero
       const F_LUSD_Before = await satoStaking.F_LUSD()
@@ -3535,8 +3519,6 @@ contract('BorrowerOperations', async accounts => {
     it("openTrove(): Borrowing at non-zero base rate sends requested amount to the user", async () => {
       // time fast-forwards 1 year, and multisig stakes 1 SATO
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
-      await satoToken.approve(satoStaking.address, dec(1, 18), { from: multisig })
-      await satoStaking.stake(dec(1, 18), { from: multisig })
 
       // Check SATO Staking contract balance before == 0
       const satoStaking_LUSDBalance_Before = await debtToken.balanceOf(satoStaking.address)

@@ -500,33 +500,70 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
             return (compoundedDebtDeposit, LiquityMath._min(_amount, compoundedDebtDeposit));		
         }
     }
+	
+    function getExpectedSATO(address _depositor) external override view returns (uint) {
+		
+        uint initialDeposit = deposits[_depositor].initialValue;
+        if (initialDeposit == 0) {return 0;}
+		
+        // apply update to current G
+        uint _SATOIssuance = communityIssuance.getSATOToIssue();
+        (uint _marginalSATOGain, , ) = _getUpdatedDeltaG(_SATOIssuance);
+        uint128 _currentScale = currentScale;
+        uint128 _currentEpoch = currentEpoch;
+        uint _updatedG = epochToScaleToG[_currentEpoch][_currentScale].add(_marginalSATOGain);
+
+        Snapshots memory snapshots = depositSnapshots[_depositor];
+		
+        uint128 epochSnapshot = snapshots.epoch;
+        uint128 scaleSnapshot = snapshots.scale;
+        uint128 nextScale = scaleSnapshot.add(1);
+		
+        // calculate depositor's SATO gain using updated G
+        uint _satoGainFromSnapshot;
+        if (epochSnapshot == _currentEpoch && scaleSnapshot == _currentScale){
+            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobleG(_updatedG, epochToScaleToG[epochSnapshot][nextScale], initialDeposit, snapshots);
+        } else if (epochSnapshot == _currentEpoch && nextScale == _currentScale){
+            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobleG(epochToScaleToG[epochSnapshot][scaleSnapshot], _updatedG, initialDeposit, snapshots);
+        } else {
+            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobleG(epochToScaleToG[epochSnapshot][scaleSnapshot], epochToScaleToG[epochSnapshot][nextScale], initialDeposit, snapshots);
+        }       
+        return _getSATOGainForDepositor(_depositor, _satoGainFromSnapshot);	
+    }
 
     // --- SATO issuance functions ---
 
     function _triggerSATOIssuance(ICommunityIssuance _communityIssuance) internal {
         uint SATOIssuance = _communityIssuance.issueSATO();
-       _updateG(SATOIssuance);
+        _updateG(SATOIssuance);
     }
 
     function _updateG(uint _SATOIssuance) internal {
+        (uint marginalSATOGain, uint SATOPerUnitStaked, uint SATONumerator) = _getUpdatedDeltaG(_SATOIssuance);
+        
+        if (marginalSATOGain == 0){
+            return;
+        }
+		
+        epochToScaleToG[currentEpoch][currentScale] = epochToScaleToG[currentEpoch][currentScale].add(marginalSATOGain);
+        lastSATOError = SATONumerator.sub(SATOPerUnitStaked.mul(totalDebtDeposits));
+
+        emit G_Updated(epochToScaleToG[currentEpoch][currentScale], currentEpoch, currentScale);
+    }
+
+    function _getUpdatedDeltaG(uint _SATOIssuance) internal view returns(uint, uint, uint){
         uint totalDebt = totalDebtDeposits; // cached to save an SLOAD
         /*
         * When total deposits is 0, G is not updated. In this case, the SATO issued can not be obtained by later
         * depositors - it is missed out on, and remains in the balanceof the CommunityIssuance contract.
         *
         */
-        if (totalDebt == 0 || _SATOIssuance == 0) {return;}
-
-        uint SATOPerUnitStaked;
-        SATOPerUnitStaked = _computeSATOPerUnitStaked(_SATOIssuance, totalDebt);
-
-        uint marginalSATOGain = SATOPerUnitStaked.mul(P);
-        epochToScaleToG[currentEpoch][currentScale] = epochToScaleToG[currentEpoch][currentScale].add(marginalSATOGain);
-
-        emit G_Updated(epochToScaleToG[currentEpoch][currentScale], currentEpoch, currentScale);
+        if (totalDebt == 0 || _SATOIssuance == 0) {return (0, 0, 0);}
+        (uint SATOPerUnitStaked, uint SATONumerator) = _getComputedSATOPerUnitStaked(_SATOIssuance, totalDebt);
+        return (SATOPerUnitStaked.mul(P), SATOPerUnitStaked, SATONumerator);
     }
 
-    function _computeSATOPerUnitStaked(uint _SATOIssuance, uint _totalDebtDeposits) internal returns (uint) {
+    function _getComputedSATOPerUnitStaked(uint _SATOIssuance, uint _totalDebtDeposits) internal view returns (uint, uint) {
         /*  
         * Calculate the SATO-per-unit staked.  Division uses a "feedback" error correction, to keep the 
         * cumulative error low in the running total G:
@@ -539,11 +576,7 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         * 5) Note: static analysis tools complain about this "division before multiplication", however, it is intended.s
         */
         uint SATONumerator = _SATOIssuance.mul(DECIMAL_PRECISION).add(lastSATOError);
-
-        uint SATOPerUnitStaked = SATONumerator.div(_totalDebtDeposits);
-        lastSATOError = SATONumerator.sub(SATOPerUnitStaked.mul(_totalDebtDeposits));
-
-        return SATOPerUnitStaked;
+        return (SATONumerator.div(_totalDebtDeposits), SATONumerator);
     }
 
     // --- Liquidation functions ---
@@ -730,6 +763,13 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         uint initialDeposit = deposits[_depositor].initialValue;
         if (initialDeposit == 0) {return 0;}
 
+        Snapshots memory snapshots = depositSnapshots[_depositor];
+        uint _SATOGainFromSnapshot = _getSATOGainFromSnapshots(initialDeposit, snapshots);
+
+        return _getSATOGainForDepositor(_depositor, _SATOGainFromSnapshot);
+    }
+	
+    function _getSATOGainForDepositor(address _depositor, uint _satoGainFromSnapshot) internal view returns (uint) {
         address frontEndTag = deposits[_depositor].frontEndTag;
 
         /*
@@ -739,11 +779,7 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         */
         uint kickbackRate = frontEndTag == address(0) ? DECIMAL_PRECISION : frontEnds[frontEndTag].kickbackRate;
 
-        Snapshots memory snapshots = depositSnapshots[_depositor];
-
-        uint SATOGain = kickbackRate.mul(_getSATOGainFromSnapshots(initialDeposit, snapshots)).div(DECIMAL_PRECISION);
-
-        return SATOGain;
+        return kickbackRate.mul(_satoGainFromSnapshot).div(DECIMAL_PRECISION);
     }
 
     /*
@@ -766,22 +802,22 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     }
 
     function _getSATOGainFromSnapshots(uint initialStake, Snapshots memory snapshots) internal view returns (uint) {
-       /*
+        uint128 epochSnapshot = snapshots.epoch;
+        uint128 scaleSnapshot = snapshots.scale;
+
+        return _getSATOGainFromSnapshotsAndGlobleG(epochToScaleToG[epochSnapshot][scaleSnapshot], epochToScaleToG[epochSnapshot][scaleSnapshot.add(1)], initialStake, snapshots);
+    }
+
+    function _getSATOGainFromSnapshotsAndGlobleG(uint scaleEpochG, uint nextScaleEpochG, uint initialStake, Snapshots memory snapshots) internal view returns (uint) {
+        /*
         * Grab the sum 'G' from the epoch at which the stake was made. The SATO gain may span up to one scale change.
         * If it does, the second portion of the SATO gain is scaled by 1e9.
         * If the gain spans no scale change, the second portion will be 0.
         */
-        uint128 epochSnapshot = snapshots.epoch;
-        uint128 scaleSnapshot = snapshots.scale;
-        uint G_Snapshot = snapshots.G;
-        uint P_Snapshot = snapshots.P;
+        uint firstPortion = scaleEpochG.sub(snapshots.G);
+        uint secondPortion = nextScaleEpochG.div(SCALE_FACTOR);
 
-        uint firstPortion = epochToScaleToG[epochSnapshot][scaleSnapshot].sub(G_Snapshot);
-        uint secondPortion = epochToScaleToG[epochSnapshot][scaleSnapshot.add(1)].div(SCALE_FACTOR);
-
-        uint SATOGain = initialStake.mul(firstPortion.add(secondPortion)).div(P_Snapshot).div(DECIMAL_PRECISION);
-
-        return SATOGain;
+        return initialStake.mul(firstPortion.add(secondPortion)).div(snapshots.P).div(DECIMAL_PRECISION);
     }
 
     // --- Compounded deposit and compounded front end stake ---

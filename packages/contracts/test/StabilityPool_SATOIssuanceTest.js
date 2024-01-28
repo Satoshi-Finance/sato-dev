@@ -146,6 +146,19 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // Check depositor B has a pending ETH gain
       const B_pendingETHGain = await stabilityPool.getDepositorETHGain(B)
       assert.isTrue(B_pendingETHGain.gt(toBN('0')))
+
+      await th.fastForwardTime(timeValues.MINUTES_IN_ONE_WEEK, web3.currentProvider)
+
+      let _pendingSATOGainForB = await stabilityPool.getDepositorETHGain(B)
+      assert.isTrue(_pendingSATOGainForB.gt(toBN('0')))	  
+	  
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)
+      assert.isTrue(_satoGainForB.gt(toBN('0')))
+      let _satoBalBefore = await satoToken.balanceOf(B)
+      await stabilityPool.withdrawFromSP(0, {from: B})
+      let _satoBalAfter = await satoToken.balanceOf(B)
+      console.log('_satoBalBefore=' + _satoBalBefore + ',_satoBalAfter=' + _satoBalAfter + ',_satoGainForB=' + _satoGainForB)
+      assert.isTrue(_satoBalAfter.sub(_satoBalBefore).eq(_satoGainForB));
     })
 
 
@@ -177,8 +190,14 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       const SATOIssuedBefore = await communityIssuanceTester.totalSATOIssued()
 
       //  A withdraws some deposit. Triggers issuance.
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      assert.isTrue(_satoGainForA.gt(toBN('0')))
+      let _satoBalBefore = await satoToken.balanceOf(A)
       const tx = await stabilityPool.withdrawFromSP(0, { from: A, gasPrice: GAS_PRICE })
       assert.isTrue(tx.receipt.status)
+      let _satoBalAfter = await satoToken.balanceOf(A)
+      console.log('_satoBalBefore=' + _satoBalBefore + ',_satoBalAfter=' + _satoBalAfter + ',_satoGain=' + _satoGainForA)
+      assert.isTrue(_satoBalAfter.sub(_satoBalBefore).eq(_satoGainForA));
 
       // Check G and SATOIssued do not increase, since <1 minute has passed between issuance triggers
       const G_After = await stabilityPool.epochToScaleToG(0, 0)
@@ -277,6 +296,16 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference(A_SATOGain_2yr, expectedSATOGain_2yr), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(B_SATOGain_2yr, expectedSATOGain_2yr), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(C_SATOGain_2yr, expectedSATOGain_2yr), SATO_REWARD_TOLERANCE)
+	  	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      console.log('_satoGainForA=' + _satoGainForA + ',A_SATOGain_2yr=' + A_SATOGain_2yr)
+      assert.isTrue(_satoGainForA.eq(A_SATOGain_2yr))
+      console.log('_satoGainForB=' + _satoGainForB + ',B_SATOGain_2yr=' + B_SATOGain_2yr)
+      assert.isTrue(_satoGainForB.eq(B_SATOGain_2yr))
+      console.log('_satoGainForC=' + _satoGainForC + ',C_SATOGain_2yr=' + C_SATOGain_2yr)
+      assert.isTrue(_satoGainForC.eq(C_SATOGain_2yr))
 
       // Each depositor fully withdraws
       await stabilityPool.requestWithdrawFromSP(dec(100, 18), { from: A })
@@ -342,16 +371,21 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // Another month passes
       await th.fastForwardTime(await getDuration(timeValues.SECONDS_IN_ONE_MONTH), web3.currentProvider)
       let _satoBalABefore = await satoToken.balanceOf(A) 
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
       await stabilityPool.provideToSP(MoneyValues._1e18BN, ZERO_ADDRESS, { from: A })
       let _satoBalAAfter = await satoToken.balanceOf(A) 
       const A_SATOGain_3 = await stabilityPool.getDepositorSATOGain(A) 
-      console.log('A_SATOGain_3=' + A_SATOGain_3 + ', _satoBalABefore=' + _satoBalABefore + ',_satoBalAAfter=' + _satoBalAAfter);
+      console.log('A_SATOGain_3=' + A_SATOGain_3 + ', _satoBalABefore=' + _satoBalABefore + ',_satoBalAAfter=' + _satoBalAAfter + ',_satoGainForA=' + _satoGainForA);
       assert.isTrue(A_SATOGain_3.eq(toBN('0')))
       assert.isTrue(_satoBalAAfter.sub(_satoBalABefore).gt(A_SATOGain_2))
+      assert.isTrue(_satoBalAAfter.sub(_satoBalABefore).eq(_satoGainForA))
 
       const D_SATOGain_3 = await stabilityPool.getDepositorSATOGain(D) 
       console.log('D_SATOGain_3=' + D_SATOGain_3);
       assert.isTrue(D_SATOGain_3.gt(_gain))
+	  	  
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
+      assert.isTrue(_satoGainForD.gt(toBN('0')))
 
     })
 
@@ -454,6 +488,16 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference(A_SATOGain_2yr, A_expectedSATOGain_2yr), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(B_SATOGain_2yr, B_expectedSATOGain_2yr), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(C_SATOGain_2yr, C_expectedSATOGain_2yr), SATO_REWARD_TOLERANCE)
+	  	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      console.log('_satoGainForA=' + _satoGainForA + ',A_SATOGain_2yr=' + A_SATOGain_2yr)
+      assert.isTrue(_satoGainForA.eq(A_SATOGain_2yr))
+      console.log('_satoGainForB=' + _satoGainForB + ',B_SATOGain_2yr=' + B_SATOGain_2yr)
+      assert.isTrue(_satoGainForB.eq(B_SATOGain_2yr))
+      console.log('_satoGainForC=' + _satoGainForC + ',C_SATOGain_2yr=' + C_SATOGain_2yr)
+      assert.isTrue(_satoGainForC.eq(C_SATOGain_2yr))
 
       // Each depositor fully withdraws   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: A })
@@ -597,6 +641,19 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference(B_SATOGain_AfterY2, B_expectedTotalGain), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(C_SATOGain_AfterY2, C_expectedTotalGain), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(D_SATOGain_AfterY2, D_expectedTotalGain), SATO_REWARD_TOLERANCE)
+	  	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
+      console.log('_satoGainForA=' + _satoGainForA + ',A_SATOGain_2yr=' + A_SATOGain_AfterY2)
+      assert.isTrue(_satoGainForA.eq(A_SATOGain_AfterY2))
+      console.log('_satoGainForB=' + _satoGainForB + ',B_SATOGain_2yr=' + B_SATOGain_AfterY2)
+      assert.isTrue(_satoGainForB.eq(B_SATOGain_AfterY2))
+      console.log('_satoGainForC=' + _satoGainForC + ',C_SATOGain_2yr=' + C_SATOGain_AfterY2)
+      assert.isTrue(_satoGainForC.eq(C_SATOGain_AfterY2))
+      console.log('_satoGainForD=' + _satoGainForD + ',C_SATOGain_2yr=' + D_SATOGain_AfterY2)
+      assert.isTrue(_satoGainForD.eq(D_SATOGain_AfterY2))
 
       // Each depositor fully withdraws   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: A })   
@@ -674,6 +731,9 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       // 1 month passes
       await th.fastForwardTime(await getDuration(timeValues.SECONDS_IN_ONE_MONTH), web3.currentProvider)
+	  	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)
 
       // Defaulter 1 liquidated. 20k LUSD fully offset with pool.
       await troveManager.liquidate(defaulter_1, { from: owner });
@@ -689,6 +749,8 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
 
       // Defaulter 2 liquidated. 10k LUSD offset
       await troveManager.liquidate(defaulter_2, { from: owner });
@@ -704,6 +766,8 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      let _satoGainForE = await stabilityPool.getExpectedSATO(E)
+      let _satoGainForF = await stabilityPool.getExpectedSATO(F)
 
       // Defaulter 3 liquidated. 100 LUSD offset
       await troveManager.liquidate(defaulter_3, { from: owner });
@@ -719,6 +783,8 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       // 1 month passes
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      let _satoGainForG = await stabilityPool.getExpectedSATO(G)
+      let _satoGainForH = await stabilityPool.getExpectedSATO(H)
 
       // Defaulter 4 liquidated. 100 LUSD offset
       await troveManager.liquidate(defaulter_4, { from: owner });
@@ -739,6 +805,15 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       const expectedSATOGain_M2 = issuance_M2.div(th.toBN('2'))
       const expectedSATOGain_M3 = issuance_M3.div(th.toBN('2'))
       const expectedSATOGain_M4 = issuance_M4.div(th.toBN('2'))
+	  
+      assert.isAtMost(getDifference(_satoGainForA, expectedSATOGain_M1), 1e15)
+      assert.isAtMost(getDifference(_satoGainForB, expectedSATOGain_M1), 1e15)
+      assert.isAtMost(getDifference(_satoGainForC, expectedSATOGain_M2), 1e15)
+      assert.isAtMost(getDifference(_satoGainForD, expectedSATOGain_M2), 1e15)
+      assert.isAtMost(getDifference(_satoGainForE, expectedSATOGain_M3), 1e15)
+      assert.isAtMost(getDifference(_satoGainForF, expectedSATOGain_M3), 1e15)
+      assert.isAtMost(getDifference(_satoGainForG, expectedSATOGain_M4), 1e15)
+      assert.isAtMost(getDifference(_satoGainForH, expectedSATOGain_M4), 1e15)
 
       // Check A, B only earn issuance from month 1. Error tolerance = 1e-3 tokens
       for (depositor of [A, B]) {
@@ -803,7 +878,10 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isTrue(totalSATOissuance_1.gt(totalSATOissuance_0))
 
       // 1 month passes (M2)
-      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)	  
+	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)	  
+      assert.isAtMost(getDifference(_satoGainForA, issuance_M2), SATO_REWARD_TOLERANCE)
 
       //SATO issuance event triggered: A withdraws.   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: A })
@@ -833,7 +911,10 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isTrue(totalSATOissuance_3.gt(totalSATOissuance_2))
 
       // 1 month passes (M4)
-      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)	  
+	  
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)	  
+      assert.isAtMost(getDifference(_satoGainForC, issuance_M4), SATO_REWARD_TOLERANCE)
 
       // C withdraws   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })
@@ -1037,7 +1118,14 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.equal(await stabilityPool.P(), dec(1, 18)) // P resets to 1e18 after pool-emptying
 
       // price doubles
-      await priceFeed.setPrice(dec(200, 18));
+      await priceFeed.setPrice(dec(200, 18));	  
+	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
+      let _satoGainForE = await stabilityPool.getExpectedSATO(E)
+      let _satoGainForF = await stabilityPool.getExpectedSATO(F)	
 
       /* All depositors withdraw fully from SP.  Withdraw in reverse order, so that the largest remaining
       deposit (F) withdraws first, and does not get extra SATO gains from the periods between withdrawals */
@@ -1074,6 +1162,13 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       assert.isAtMost(getDifference(expectedGainE, SATOGain_E), 1e15)
       assert.isAtMost(getDifference(expectedGainF, SATOGain_F), 1e15)
+	  
+      assert.isAtMost(getDifference(expectedGainA, _satoGainForA), 1e15)
+      assert.isAtMost(getDifference(expectedGainB, _satoGainForB), 1e15)
+      assert.isAtMost(getDifference(expectedGainC, _satoGainForC), 1e15)
+      assert.isAtMost(getDifference(expectedGainD, _satoGainForD), 1e15)
+      assert.isAtMost(getDifference(expectedGainE, _satoGainForE), 1e15)
+      assert.isAtMost(getDifference(expectedGainF, _satoGainForF), 1e15)
     })
 
     // --- FrontEnds and kickback rates
@@ -1180,7 +1275,12 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference(F2_SATOGain_Y1, F2_expectedGain_Y1), SATO_REWARD_TOLERANCE)
 
       // Another year passes
-      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)	  
+	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)  
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
 
       // E deposits, triggering SATO gains for A,B,CD,F1, F2. Withdraws immediately after
       await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E })   
@@ -1213,6 +1313,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: D })
       await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+	  
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A })
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: B })
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C })
@@ -1225,6 +1326,12 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference((await satoToken.balanceOf(D)), D_expectedFinalGain), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference((await satoToken.balanceOf(frontEnd_1)), F1_expectedFinalGain), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference((await satoToken.balanceOf(frontEnd_2)), F2_expectedFinalGain), SATO_REWARD_TOLERANCE)
+	  
+      console.log('_satoGainForA=' + _satoGainForA + ',A_expectedFinalGain=' + A_expectedFinalGain)	  
+      assert.isAtMost(getDifference(_satoGainForA, A_expectedFinalGain), SATO_REWARD_TOLERANCE)
+      assert.isAtMost(getDifference(_satoGainForB, B_expectedFinalGain), SATO_REWARD_TOLERANCE)
+      assert.isAtMost(getDifference(_satoGainForC, C_expectedFinalGain), SATO_REWARD_TOLERANCE)
+      assert.isAtMost(getDifference(_satoGainForD, D_expectedFinalGain), SATO_REWARD_TOLERANCE)
     })
 
     // A, B, C, D deposit 10k,20k,30k,40k.
@@ -1550,7 +1657,10 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       th.assertIsApproximatelyEqual(await stabilityPool.getTotalDebtDeposits(), dec(80000, 18))
 
       // Month 4 passes
-      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)	  
+	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
 
       // All depositors fully withdraw
       for (depositor of [A, B, C, D, E]) {    
@@ -1640,7 +1750,10 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference(D_FinalSATOBalance, D_expectedFinalSATOBalance), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(E_FinalSATOBalance, E_expectedFinalSATOBalance), SATO_REWARD_TOLERANCE)
       assert.isAtMost(getDifference(F1_FinalSATOBalance, F1_expectedFinalSATOBalance), SATO_REWARD_TOLERANCE)
-      assert.isAtMost(getDifference(F2_FinalSATOBalance, F2_expectedFinalSATOBalance), SATO_REWARD_TOLERANCE)
+      assert.isAtMost(getDifference(F2_FinalSATOBalance, F2_expectedFinalSATOBalance), SATO_REWARD_TOLERANCE)	  
+	  
+      assert.isAtMost(getDifference(_satoGainForA, A_expectedFinalSATOBalance), 170e18)
+      assert.isAtMost(getDifference(_satoGainForD, D_expectedFinalSATOBalance), SATO_REWARD_TOLERANCE)
     })
 
     /* Serial scale changes, with one front end
@@ -1753,7 +1866,12 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       await stabilityPool.provideToSP(dec(99999, 17), frontEnd_1, { from: E })
 
       // 1 month passes (M4)
-      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_MONTH, web3.currentProvider)	  
+	  
+      let _satoGainForA = await stabilityPool.getExpectedSATO(A)
+      let _satoGainForB = await stabilityPool.getExpectedSATO(B)	  
+      let _satoGainForC = await stabilityPool.getExpectedSATO(C)
+      let _satoGainForD = await stabilityPool.getExpectedSATO(D)
 
       // Defaulter 4 liquidated
       const txL4 = await troveManager.liquidate(defaulter_4, { from: owner });
@@ -1845,7 +1963,12 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       assert.isAtMost(getDifference(expectedSATOGain_C, SATOGain_C), 1e15)
       assert.isAtMost(getDifference(expectedSATOGain_D, SATOGain_D), 1e16)
       assert.isAtMost(getDifference(expectedSATOGain_E, SATOGain_E), 900e18)
-      assert.isAtMost(getDifference(expectedSATOGain_F1, SATOGain_F1), 220e18)
+      assert.isAtMost(getDifference(expectedSATOGain_F1, SATOGain_F1), 220e18)	  
+	  
+      assert.isAtMost(getDifference(_satoGainForA, expectedSATOGain_A_and_B), 1e15)
+      assert.isAtMost(getDifference(_satoGainForB, expectedSATOGain_A_and_B), 1e15)	  
+      assert.isAtMost(getDifference(_satoGainForC, expectedSATOGain_C), 1e15)
+      assert.isAtMost(getDifference(_satoGainForD, expectedSATOGain_D), 1e16)
     })
 
   })

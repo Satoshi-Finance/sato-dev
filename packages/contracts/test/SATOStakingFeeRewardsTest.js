@@ -79,7 +79,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // console.log(`A SATO bal: ${await satoToken.balanceOf(A)}`)
 
@@ -98,7 +98,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig, gasPrice: GAS_PRICE})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress, gasPrice: GAS_PRICE})
 
     // console.log(`A SATO bal: ${await satoToken.balanceOf(A)}`)
 
@@ -141,7 +141,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig, gasPrice: GAS_PRICE})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress, gasPrice: GAS_PRICE})
 
     // Check ETH fee per unit staked is zero
     const F_ETH_Before = await satoStaking.F_ETH()
@@ -174,7 +174,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // A makes stake
     await satoToken.approve(satoStaking.address, dec(100, 18), {from: A})
@@ -222,7 +222,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // Check LUSD fee per unit staked is zero
     const F_LUSD_Before = await satoStaking.F_ETH()
@@ -262,7 +262,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // A makes stake
     await satoToken.approve(satoStaking.address, dec(100, 18), {from: A})
@@ -335,7 +335,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // A makes stake
     await satoToken.approve(satoStaking.address, dec(100, 18), {from: A})
@@ -407,7 +407,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // A makes stake
     await satoToken.approve(satoStaking.address, dec(100, 18), {from: A})
@@ -453,7 +453,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
 
     // A makes stake
     await satoToken.approve(satoStaking.address, dec(100, 18), {from: A})
@@ -516,9 +516,9 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A, B, C
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
-    await satoToken.transfer(B, dec(200, 18), {from: multisig})
-    await satoToken.transfer(C, dec(300, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
+    await satoToken.transfer(B, dec(200, 18), {from: bountyAddress})
+    await satoToken.transfer(C, dec(300, 18), {from: bountyAddress})
 
     // A, B, C make stake
     await satoToken.approve(satoStaking.address, dec(100, 18), {from: A})
@@ -554,7 +554,7 @@ contract('SATOStaking revenue share tests', async accounts => {
     assert.isTrue(emittedLUSDFee_2.gt(toBN('0')))
 
     // D obtains SATO from owner and makes a stake
-    await satoToken.transfer(D, dec(50, 18), {from: multisig})
+    await satoToken.transfer(D, dec(50, 18), {from: bountyAddress})
     await satoToken.approve(satoStaking.address, dec(50, 18), {from: D})
     await satoStaking.stake(dec(50, 18), {from: D})
 
@@ -679,8 +679,8 @@ contract('SATOStaking revenue share tests', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
     // multisig transfers SATO to staker A and the non-payable proxy
-    await satoToken.transfer(A, dec(100, 18), {from: multisig})
-    await satoToken.transfer(nonPayable.address, dec(100, 18), {from: multisig})
+    await satoToken.transfer(A, dec(100, 18), {from: bountyAddress})
+    await satoToken.transfer(nonPayable.address, dec(100, 18), {from: bountyAddress})
 
     //  A makes stake
     const A_stakeTx = await satoStaking.stake(dec(100, 18), {from: A})

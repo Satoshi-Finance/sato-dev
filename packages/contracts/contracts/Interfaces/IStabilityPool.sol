@@ -167,6 +167,9 @@ interface IStabilityPool {
      * which they made their deposit.
      */
     function getDepositorSATOGain(address _depositor) external view returns (uint);
+	
+    /// @dev return SATO earned so far for given depositor assuming latest SATO issued from CommunityIssuance
+    function getExpectedSATO(address _depositor) external view returns (uint);
 
     /*
      * Return the SATO gain earned by the front end.

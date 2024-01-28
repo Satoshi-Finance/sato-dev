@@ -439,7 +439,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
       const LC = await th.getLCFromDeploymentTx(deployedLCtx)
 
       // SATO Multisig funds the LC
-      await satoToken.transfer(LC.address, dec(100, 18), { from: multisig })
+      await satoToken.transfer(LC.address, dec(100, 18), { from: bountyAddress })
 
       // Fast-forward one year, so that beneficiary can withdraw
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
@@ -478,9 +478,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
   })
 
   describe('SATOToken', async accounts => {
-    it("sendToStaking(): reverts when caller is not the SATOSstaking", async () => {
-      // Check multisig has some SATO
-      assert.isTrue((await satoToken.balanceOf(multisig)).gt(toBN('0')))
+    it("sendToStaking(): reverts when caller is not the SATOStaking", async () => {
 
       // multisig tries to call it
       try {
@@ -493,7 +491,7 @@ contract('Access Control: Liquity functions with the caller restricted to Liquit
       await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
 
       // Owner transfers 1 SATO to bob
-      await satoToken.transfer(bob, dec(1, 18), { from: multisig })
+      await satoToken.transfer(bob, dec(1, 18), { from: bountyAddress })
       assert.equal((await satoToken.balanceOf(bob)), dec(1, 18))
 
       // Bob tries to call it
