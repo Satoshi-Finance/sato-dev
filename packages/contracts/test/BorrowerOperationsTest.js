@@ -3742,7 +3742,7 @@ contract('BorrowerOperations', async accounts => {
 
       const LUSDRequest = MIN_NET_DEBT
       await th.getCollateralTokenWithApprovalToBO(contracts, alice, MoneyValues._1Be18BN, dec(100, 'ether'));
-      borrowerOperations.openTrove(th._100pct, LUSDRequest, dec(100, 'ether'), { from: alice, value: 0 })
+      await borrowerOperations.openTrove(th._100pct, LUSDRequest, dec(100, 'ether'), { from: alice, value: 0 })
 
       // Get the expected debt based on the LUSD request (adding fee and liq. reserve on top)
       let _fee = await troveManager.getBorrowingFeeForBorrower(alice, LUSDRequest);
@@ -3756,7 +3756,8 @@ contract('BorrowerOperations', async accounts => {
       assert.isTrue(coll_After.gt('0'))
       assert.isTrue(debt_After.gt('0'))
 
-      assert.isTrue(debt_After.eq(expectedDebt))
+      console.log('debt_After=' + debt_After + ',LUSDRequest=' + LUSDRequest + ',_fee=' + _fee);
+      assert.equal(debt_After.toString(), expectedDebt.toString())
 
       // check active status
       assert.equal(status_After, 1)

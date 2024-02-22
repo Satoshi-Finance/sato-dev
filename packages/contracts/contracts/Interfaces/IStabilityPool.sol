@@ -195,4 +195,7 @@ interface IStabilityPool {
 	
     /// @dev depositor need to call this function first to submit a request before call withdrawFromSP()
     function requestWithdrawFromSP(uint _amount) external;
+	
+    /// @dev get existing withdrawal request for given _depositor and if it is still valid
+    function existWithdrawalRequest(address _depositor) external view returns (uint, uint, bool);
 }

@@ -199,6 +199,10 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     uint public constant SCALE_FACTOR = 1e9;
     /// @dev each withdraw request will be delayed
     uint public constant WITHDRAWAL_DELAY_SECONDS = 1800;
+    /// @dev each withdraw request will be expired after this window
+    uint public constant WITHDRAWAL_WINDOW_SECONDS = 3600;
+    /// @dev new withdraw request will be accepted after this interval
+    uint public constant WITHDRAWAL_INTERVAL_SECONDS = 43200;
     /// @dev record withdraw request time for each depositor
     mapping (address => uint) public withdrawReqTime;
     /// @dev record withdraw request amount for each depositor, reset by successful withdraw completion
@@ -319,6 +323,17 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     function getTotalDebtDeposits() external view override returns (uint) {
         return totalDebtDeposits;
     }
+	
+    /// @dev get existing withdrawal request for given _depositor and if it is still within window
+    /// @return the amout of exiting withdrawal request, zero if no withdrawal request
+    /// @return the timestamp of exiting withdrawal request, zero if no withdrawal request
+    /// @return whether exiting withdrawal request is still valid: true if window not expired otherwise false
+    function existWithdrawalRequest(address _depositor) public view override returns (uint, uint, bool){	
+        uint256 existingTs = withdrawReqTime[_depositor];
+        uint256 existingAmt = withdrawReqAmount[_depositor];
+        bool _stillValid = (existingAmt > 0 && existingTs > 0 && block.timestamp < (existingTs + WITHDRAWAL_DELAY_SECONDS + WITHDRAWAL_WINDOW_SECONDS))? true : false;
+        return (existingAmt, existingTs, _stillValid);
+    }
 
     // --- External Depositor Functions ---
 
@@ -373,8 +388,9 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         _requireSystemTCR();
         _requireUserHasDeposit(deposits[msg.sender].initialValue);
 		
-        uint _existReqAmount = withdrawReqAmount[msg.sender];
-        require(_existReqAmount == 0, "StabilityPool: already exist withdrawal request");
+        (uint256 _existingAmt, uint256 _existingTs, bool _stillValid) = existWithdrawalRequest(msg.sender);
+        require(!_stillValid, "StabilityPool: already exist withdrawal request");
+        require((_existingAmt == 0 && _existingTs == 0) || block.timestamp > (_existingTs + WITHDRAWAL_INTERVAL_SECONDS), "StabilityPool: withdrawal request too frequent");
 		
         (, uint withdrawAmt) = _capWithdrawAmount(msg.sender, _amount);
         require(withdrawAmt > 0, "StabilityPool: zero compounded deposit");
@@ -399,11 +415,9 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         if (_amount != 0) { 
             _requireSystemTCR();
 			
-            // check withdrawal delay		
-            uint _existReqAmount = withdrawReqAmount[msg.sender];
-            require(_existReqAmount > 0, "StabilityPool: no valid existing withdrawal request");
-			
-            uint _reqTime = withdrawReqTime[msg.sender];
+            // check withdrawal delay and validity	
+            (uint _existReqAmount, uint _reqTime, bool _stillValid) = existWithdrawalRequest(msg.sender);
+            require(_stillValid, "StabilityPool: withdrawal window is expired or request not exist");
             require((_reqTime + WITHDRAWAL_DELAY_SECONDS) < block.timestamp, "StabilityPool: withdrawal delay not expire");
 			
             _amount = _existReqAmount;
@@ -431,7 +445,6 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         _updateFrontEndStakeAndSnapshots(frontEnd, newFrontEndStake);
         emit FrontEndStakeChanged(frontEnd, newFrontEndStake, msg.sender);
 
-        withdrawReqAmount[msg.sender] = 0;
         _sendDebtToDepositor(msg.sender, debtToWithdraw);
 
         // Update deposit

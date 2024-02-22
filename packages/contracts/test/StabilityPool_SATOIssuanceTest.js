@@ -431,7 +431,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // D deposits, triggering SATO gains for A,B,C. Withdraws immediately after
       await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: D })   
       await stabilityPool.requestWithdrawFromSP(dec(1, 18), { from: D })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(1, 18), { from: D })
 
       // Expected gains for each depositor after 1 year (50% total issued)
@@ -463,7 +463,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // D deposits, triggering SATO gains for A,B,C. Withdraws immediately after
       await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: D })   
       await stabilityPool.requestWithdrawFromSP(dec(1, 18), { from: D })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(1, 18), { from: D })
 
       // Expected gains for each depositor after 2 years (75% total issued).
@@ -503,7 +503,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: A })
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: B })
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A })
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: B })
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C })
@@ -605,7 +605,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // E deposits and withdraws, creating SATO issuance
       await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E })   
       await stabilityPool.requestWithdrawFromSP(dec(1, 18), { from: E })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(1, 18), { from: E })
 
       // Expected gains for each depositor during Y2:
@@ -660,7 +660,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: B })   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: D })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A })
       await stabilityPool.withdrawFromSP(dec(20000, 18), { from: B })
       await stabilityPool.withdrawFromSP(dec(30000, 18), { from: C })
@@ -885,7 +885,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       //SATO issuance event triggered: A withdraws.   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: A })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider) 
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider) 
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A })
 
       // Check G is updated, since SP was not empty prior to A's withdrawal
@@ -918,7 +918,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
 
       // C withdraws   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C })
 
       // Check G is increased, since SP was not empty prior to C's withdrawal
@@ -1237,7 +1237,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // E deposits, triggering SATO gains for A,B,C,D,F1,F2. Withdraws immediately after
       await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E })    
       await stabilityPool.requestWithdrawFromSP(dec(1, 18), { from: E })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(1, 18), { from: E })
 
       // Expected issuance for year 1 is 50% of total supply.
@@ -1285,7 +1285,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // E deposits, triggering SATO gains for A,B,CD,F1, F2. Withdraws immediately after
       await stabilityPool.provideToSP(dec(1, 18), ZERO_ADDRESS, { from: E })   
       await stabilityPool.requestWithdrawFromSP(dec(1, 18), { from: E })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(1, 18), { from: E })
 
       // Expected gains for each depositor in Y2(25% total issued).  .
@@ -1312,7 +1312,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: B })   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })   
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: D })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
 	  
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: A })
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: B })
@@ -1651,7 +1651,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       th.assertIsApproximatelyEqual(await stabilityPool.getTotalDebtDeposits(), dec(90000, 18))
     
       await stabilityPool.requestWithdrawFromSP(dec(10000, 18), { from: C })
-      await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+      await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
       await stabilityPool.withdrawFromSP(dec(10000, 18), { from: C })
 
       th.assertIsApproximatelyEqual(await stabilityPool.getTotalDebtDeposits(), dec(80000, 18))
@@ -1665,7 +1665,7 @@ contract('StabilityPool - SATO Rewards', async accounts => {
       // All depositors fully withdraw
       for (depositor of [A, B, C, D, E]) {    
         await stabilityPool.requestWithdrawFromSP(dec(100000, 18), { from: depositor })
-        await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+        await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
         await stabilityPool.withdrawFromSP(dec(100000, 18), { from: depositor })
         const compoundedLUSDDeposit = await stabilityPool.getCompoundedDebtDeposit(depositor)
         assert.equal(compoundedLUSDDeposit, '0')

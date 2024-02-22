@@ -1038,7 +1038,7 @@ contract('TroveManager', async accounts => {
     // B withdraws
     let _spWithdrawAmt = dec(100, 18);
     await stabilityPool.requestWithdrawFromSP(_spWithdrawAmt, { from: B })
-	await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+	await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
     await stabilityPool.withdrawFromSP(_spWithdrawAmt, { from: B })
 
     // Check SP is empty
@@ -1720,7 +1720,7 @@ contract('TroveManager', async accounts => {
     // B withdraws
     let _spWithdrawAmt = dec(100, 18);
     await stabilityPool.requestWithdrawFromSP(_spWithdrawAmt, { from: B })
-	await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+	await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
     await stabilityPool.withdrawFromSP(_spWithdrawAmt, { from: B })
 
     // Check SP is empty
@@ -2159,7 +2159,7 @@ contract('TroveManager', async accounts => {
     // B withdraws
     let _spWithdrawAmt = dec(100, 18);
     await stabilityPool.requestWithdrawFromSP(_spWithdrawAmt, { from: B })
-	await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+	await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
     await stabilityPool.withdrawFromSP(_spWithdrawAmt, { from: B })
 
     // Check SP is empty
@@ -3525,32 +3525,33 @@ contract('TroveManager', async accounts => {
     const price = await priceFeed.getPrice()
     const ETHDrawn = attemptedLUSDRedemption.mul(mv._1e18BN).div(price)
     const slightlyMoreThanFee = (await troveManager.getRedemptionFeeWithDecayForRedeemer(A, ETHDrawn))
-    const tx1 = await th.redeemCollateralAndGetTxObject(A, contracts, attemptedLUSDRedemption, slightlyMoreThanFee)
+    const tx1 = await th.redeemCollateralAndGetTxObject(A, contracts, attemptedLUSDRedemption, GAS_PRICE, slightlyMoreThanFee)
+    console.log('tx1=' + JSON.stringify(tx1))
     assert.isTrue(tx1.receipt.status)
 
     await troveManager.setBaseRate(0)  // Artificially zero the baseRate
     
     // Attempt with maxFee = 5.5%
     const exactSameFee = (await troveManager.getRedemptionFeeWithDecayForRedeemer(C, ETHDrawn))
-    const tx2 = await th.redeemCollateralAndGetTxObject(C, contracts, attemptedLUSDRedemption, exactSameFee)
+    const tx2 = await th.redeemCollateralAndGetTxObject(C, contracts, attemptedLUSDRedemption, GAS_PRICE, exactSameFee)
     assert.isTrue(tx2.receipt.status)
 
     await troveManager.setBaseRate(0)
 
      // Max fee is 10%
-    const tx3 = await th.redeemCollateralAndGetTxObject(B, contracts, attemptedLUSDRedemption, dec(1, 17))
+    const tx3 = await th.redeemCollateralAndGetTxObject(B, contracts, attemptedLUSDRedemption, GAS_PRICE, dec(1, 17))
     assert.isTrue(tx3.receipt.status)
 
     await troveManager.setBaseRate(0)
 
     // Max fee is 37.659%
-    const tx4 = await th.redeemCollateralAndGetTxObject(A, contracts, attemptedLUSDRedemption, dec(37659, 13))
+    const tx4 = await th.redeemCollateralAndGetTxObject(A, contracts, attemptedLUSDRedemption, GAS_PRICE, dec(37659, 13))
     assert.isTrue(tx4.receipt.status)
 
     await troveManager.setBaseRate(0)
 
     // Max fee is 100%
-    const tx5 = await th.redeemCollateralAndGetTxObject(C, contracts, attemptedLUSDRedemption, dec(1, 18))
+    const tx5 = await th.redeemCollateralAndGetTxObject(C, contracts, attemptedLUSDRedemption, GAS_PRICE, dec(1, 18))
     assert.isTrue(tx5.receipt.status)
   })
 

@@ -1653,6 +1653,7 @@ contract('StabilityPool', async accounts => {
       const ETHinSP_Before = (await stabilityPool.getETH()).toString()
 
       // Alice attempts second withdrawal
+      await th.fastForwardTime((timeValues.SECONDS_IN_ONE_DAY / 2) + 123, web3.currentProvider)
       await th.withdrawFromSPByRequest(contracts, alice, dec(10000, 18), web3.currentProvider)
       assert.equal(await stabilityPool.getDepositorETHGain(alice), 0)
 

@@ -1718,19 +1718,34 @@ contract('TroveManager - in Recovery Mode', async accounts => {
     const bob_ICR = await troveManager.getCurrentICR(bob, price)
     console.log('bob_ICR=' + bob_ICR);
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(TCR))
-    // debt is increased by fee, due to previous redemption
-    const bob_debt = await troveManager.getTroveDebt(bob)
 
     // Liquidate Bob
     let bobEntireDebtAndColl = await troveManager.getEntireDebtAndColl(bob);
+    let _bobDebt = bobEntireDebtAndColl[0]
+    let _bobColl = bobEntireDebtAndColl[1]
+    // due to redemption, the debt & coll of Bob decrease
+    assert.isTrue(B_netDebt.gt(_bobDebt))
+    assert.isTrue(B_coll.gt(_bobColl))
+    let _spDebtBalBefore = await debtToken.balanceOf(stabilityPool.address)
+    let _ownerCollBalBefore = await collateralToken.balanceOf(owner)
+    let _spCollBalBefore = await collateralToken.balanceOf(stabilityPool.address)
     await troveManager.liquidate(bob, { from: owner })
+    let _spDebtBalAfter = await debtToken.balanceOf(stabilityPool.address)
+    let _ownerCollBalAfter = await collateralToken.balanceOf(owner)
+    let _spCollBalAfter = await collateralToken.balanceOf(stabilityPool.address)
+    assert.isTrue(_spDebtBalBefore.sub(_spDebtBalAfter).eq(_bobDebt))
 
     // check Bob’s PREMIUM collateral surplus
     let _collLiquidatedRatio = mv._ICR108
-    const bob_remainingCollateral = bobEntireDebtAndColl[1].sub(bobEntireDebtAndColl[0].mul(_collLiquidatedRatio).div(price))
+    let _collLiquidated = _bobDebt.mul(_collLiquidatedRatio).div(price)
+    // liquidation caller got 0.5% of liquidated collateral as reward
+    let _collLiquidatedToCaller = _collLiquidated.mul(toBN('50')).div(toBN('10000'))
+    assert.isTrue(_ownerCollBalAfter.sub(_ownerCollBalBefore).eq(_collLiquidatedToCaller))
+    assert.isTrue(_spCollBalAfter.sub(_spCollBalBefore).eq(_collLiquidated.sub(_collLiquidatedToCaller)))
+    const bob_remainingCollateral = _bobColl.sub(_collLiquidated)
     th.assertIsApproximatelyEqual((await collSurplusPool.getCollateral(bob)).toString(), bob_remainingCollateral.toString())
 
-    // can claim collateral
+    // bob can claim collateral surplus
     const bob_balanceBefore_2 = await collateralToken.balanceOf(bob)
     await borrowerOperations.claimCollateral({ from: bob, gasPrice: GAS_PRICE  })
     const bob_balanceAfter_2 = await collateralToken.balanceOf(bob)
@@ -3777,8 +3792,45 @@ contract('TroveManager - in Recovery Mode', async accounts => {
     await priceFeed.setPrice(dec(200, 18))
     
     await stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale })
-    await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS + 123, web3.currentProvider)
+    await assertRevert(stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale }), "StabilityPool: already exist withdrawal request")
+    let _existWdReqTs = (await stabilityPool.existWithdrawalRequest(whale))[1];
+    assert.isTrue(_existWdReqTs.gt(toBN('0')));
+	
+    // window expire but we have to wait submit interval passed before another withdrawal request
+    const blkTsBefore = await th.getLatestBlockTimestamp(web3);
+    await th.fastForwardTime(timeValues.SECONDS_IN_TWO_HOURS, web3.currentProvider)
+    const blkTsAfter = await th.getLatestBlockTimestamp(web3);
+    console.log('ts before=' + blkTsBefore + ',ts after=' + blkTsAfter);
+    await stabilityPool.withdrawFromSP(0, {from: whale})
+    let _existWdReq0 = await stabilityPool.existWithdrawalRequest(whale);
+    console.log('_existWdReq0[0]=' + _existWdReq0[0] + ',_existWdReq0[1]=' + _existWdReq0[1] + ',_existWdReq0[2]=' + _existWdReq0[2] + ',spDeposit=' + spDeposit);
+    assert.isTrue(_existWdReq0[0].gt(toBN('0')));
+    assert.isTrue(_existWdReq0[1].eq(_existWdReqTs));
+    assert.isFalse(_existWdReq0[2]);
+    await assertRevert(stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale }), "StabilityPool: withdrawal request too frequent")
+	
+    // window expire so we could request another withdrawal
+    await th.fastForwardTime((timeValues.SECONDS_IN_ONE_DAY / 2) + 123, web3.currentProvider)
+    await stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale });
+    let _existWdReqTs1 = (await stabilityPool.existWithdrawalRequest(whale))[1];
+    assert.isTrue(_existWdReqTs1.gt(_existWdReqTs));
+	
+    // still within withdrawal window and withdraw 0 does NOT impact existing request
+    await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR + 123, web3.currentProvider)
+    let _existWdReqValid = (await stabilityPool.existWithdrawalRequest(whale))[2];
+    assert.isTrue(_existWdReqValid);
+    await stabilityPool.withdrawFromSP(0, {from: whale})
+    let _existWdReq = await stabilityPool.existWithdrawalRequest(whale);
+    assert.isTrue(_existWdReq[0].eq(_existWdReq0[0]));
+    assert.isTrue(_existWdReq[1].eq(_existWdReqTs1));
+    assert.isTrue(_existWdReq[2]);
     await stabilityPool.withdrawFromSP(spDeposit, {from: whale})
+    
+    // after withdrawal window expire try again
+    await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
+    let _existWdReqValid1 = (await stabilityPool.existWithdrawalRequest(whale))[2];
+    assert.isFalse(_existWdReqValid1);
+    await assertRevert(stabilityPool.withdrawFromSP(spDeposit, {from: whale}), "StabilityPool: withdrawal window is expired or request not exist")
 	
     await priceFeed.setPrice(dec(110, 18))
     await stabilityPool.provideToSP(B_totalDebt.add(toBN(dec(50, 18))), ZERO_ADDRESS, {from: whale})
