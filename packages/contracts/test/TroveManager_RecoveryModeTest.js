@@ -3798,7 +3798,7 @@ contract('TroveManager - in Recovery Mode', async accounts => {
     await priceFeed.setPrice(dec(200, 18))
     
     await stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale })
-    await assertRevert(stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale }), "StabilityPool: already exist withdrawal request")
+    await assertRevert(stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale }), "StabilityPool: withdrawal request already exists")
     let _existWdReqTs = (await stabilityPool.existWithdrawalRequest(whale))[1];
     assert.isTrue(_existWdReqTs.gt(toBN('0')));
 	
@@ -3813,7 +3813,7 @@ contract('TroveManager - in Recovery Mode', async accounts => {
     assert.isTrue(_existWdReq0[0].gt(toBN('0')));
     assert.isTrue(_existWdReq0[1].eq(_existWdReqTs));
     assert.isFalse(_existWdReq0[2]);
-    await assertRevert(stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale }), "StabilityPool: withdrawal request too frequent")
+    await assertRevert(stabilityPool.requestWithdrawFromSP(spDeposit, { from: whale }), "StabilityPool: withdrawal requests too frequent")
 	
     // window expire so we could request another withdrawal
     await th.fastForwardTime((timeValues.SECONDS_IN_ONE_DAY / 2) + 123, web3.currentProvider)
@@ -3836,7 +3836,7 @@ contract('TroveManager - in Recovery Mode', async accounts => {
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
     let _existWdReqValid1 = (await stabilityPool.existWithdrawalRequest(whale))[2];
     assert.isFalse(_existWdReqValid1);
-    await assertRevert(stabilityPool.withdrawFromSP(spDeposit, {from: whale}), "StabilityPool: withdrawal window is expired or request not exist")
+    await assertRevert(stabilityPool.withdrawFromSP(spDeposit, {from: whale}), "StabilityPool: withdrawal window has expired or request does not exist")
 	
     await priceFeed.setPrice(dec(110, 18))
     await stabilityPool.provideToSP(B_totalDebt.add(toBN(dec(50, 18))), ZERO_ADDRESS, {from: whale})

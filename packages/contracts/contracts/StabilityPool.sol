@@ -205,9 +205,10 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
     uint public constant WITHDRAWAL_INTERVAL_SECONDS = 43200;
     /// @dev record withdraw request time for each depositor
     mapping (address => uint) public withdrawReqTime;
+    /// @dev record last withdraw time for each depositor
+    mapping (address => uint) public lastWithdrawTime;
     /// @dev record withdraw request amount for each depositor, reset by successful withdraw completion
     mapping (address => uint) public withdrawReqAmount;
-
 
     // Each time the scale of P shifts by SCALE_FACTOR, the scale is incremented by 1
     uint128 public currentScale;
@@ -389,8 +390,8 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         _requireUserHasDeposit(deposits[msg.sender].initialValue);
 		
         (uint256 _existingAmt, uint256 _existingTs, bool _stillValid) = existWithdrawalRequest(msg.sender);
-        require(!_stillValid, "StabilityPool: already exist withdrawal request");
-        require((_existingAmt == 0 && _existingTs == 0) || block.timestamp > (_existingTs + WITHDRAWAL_INTERVAL_SECONDS), "StabilityPool: withdrawal request too frequent");
+        require(!_stillValid, "StabilityPool: withdrawal request already exists");
+        require((_existingAmt == 0 && _existingTs == 0) || block.timestamp > (_existingTs + WITHDRAWAL_INTERVAL_SECONDS), "StabilityPool: withdrawal requests too frequent");
 		
         (, uint withdrawAmt) = _capWithdrawAmount(msg.sender, _amount);
         require(withdrawAmt > 0, "StabilityPool: zero compounded deposit");
@@ -417,10 +418,12 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
 			
             // check withdrawal delay and validity	
             (uint _existReqAmount, uint _reqTime, bool _stillValid) = existWithdrawalRequest(msg.sender);
-            require(_stillValid, "StabilityPool: withdrawal window is expired or request not exist");
+            require(_stillValid, "StabilityPool: withdrawal window has expired or request does not exist");
             require((_reqTime + WITHDRAWAL_DELAY_SECONDS) < block.timestamp, "StabilityPool: withdrawal delay not expire");
+            require(lastWithdrawTime[msg.sender] == 0 || block.timestamp > (lastWithdrawTime[msg.sender] + WITHDRAWAL_DELAY_SECONDS + WITHDRAWAL_INTERVAL_SECONDS), "StabilityPool: try withdraw later");
 			
             _amount = _existReqAmount;
+            lastWithdrawTime[msg.sender] = block.timestamp;
         }
 		
         uint initialDeposit = deposits[msg.sender].initialValue;

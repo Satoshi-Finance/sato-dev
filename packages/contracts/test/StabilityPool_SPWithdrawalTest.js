@@ -2199,6 +2199,43 @@ contract('StabilityPool - Withdrawal of stability deposit - Reward calculations'
       assert.equal(alice_ETHWithdrawn.toString(), '0')
       assert.equal(bob_ETHWithdrawn.toString(), '0')
     })
+
+    it("withdrawFromSP(): check timelock", async () => {
+      // Whale opens Trove with 100k ETH 
+      await contracts.collateral.approve(borrowerOperations.address, MoneyValues._1Be18BN, { from: whale });
+      await contracts.collateral.deposit({ from: whale, value: dec(100000, 'ether') });
+      await borrowerOperations.openTrove(th._100pct, await getOpenTroveLUSDAmount(dec(100000, 18)), dec(100000, 'ether'), { from: whale, value: 0 })
+
+      // ETH:USD price is $2 billion per ETH
+      await priceFeed.setPrice(dec(2, 27));
+      const price = await priceFeed.getPrice()
+
+      let _spDeposit = dec(1, 38);
+      const depositors = [alice, bob]
+      for (account of depositors) {
+        await contracts.collateral.approve(borrowerOperations.address, MoneyValues._1Be18BN.mul(toBN('1000')), { from: account });
+        await contracts.collateral.deposit({ from: account, value: dec(2, 29) });
+        await borrowerOperations.openTrove(th._100pct, _spDeposit, dec(2, 29), { from: account, value: 0 })
+        await stabilityPool.provideToSP(_spDeposit, ZERO_ADDRESS, { from: account })
+      }	  
+	  
+      let _smallWithdraw = dec(1, 18);
+      await stabilityPool.requestWithdrawFromSP(_smallWithdraw, { from: alice })
+      await th.fastForwardTime(TimeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
+      await stabilityPool.withdrawFromSP(_smallWithdraw, {from: alice})
+      let _lastWithdrawTs = await stabilityPool.lastWithdrawTime(alice);
+      assert.isTrue(_lastWithdrawTs.gt(toBN('0')));
+      await th.assertRevert(stabilityPool.withdrawFromSP(_smallWithdraw, { from: alice }), "StabilityPool: try withdraw later")
+      await th.fastForwardTime((TimeValues.SECONDS_IN_ONE_DAY / 2) + TimeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
+      await th.assertRevert(stabilityPool.withdrawFromSP(_smallWithdraw, { from: alice }), "StabilityPool: withdrawal window has expired or request does not exist")	  
+	  
+      await stabilityPool.requestWithdrawFromSP(_smallWithdraw, { from: alice })
+      await th.fastForwardTime(TimeValues.SECONDS_IN_ONE_HOUR, web3.currentProvider)
+      await stabilityPool.withdrawFromSP(_smallWithdraw, {from: alice})
+      let _lastWithdrawTs1 = await stabilityPool.lastWithdrawTime(alice);
+      assert.isTrue(_lastWithdrawTs1.gt(_lastWithdrawTs));
+	  
+    })
   })
 })
 
