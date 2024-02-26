@@ -212,7 +212,7 @@ contract SATOStaking is ISATOStaking, Ownable, CheckContract, BaseMath {
     }
 
     function increaseF_LUSD(uint _debtMintFee) external override {
-        _requireCallerIsTroveManagerOrBO();
+        _requireCallerIsBO();
         uint debtFeePerSATOStaked;
         
         if (totalSATOStaked > 0) {debtFeePerSATOStaked = _debtMintFee.mul(DECIMAL_PRECISION).div(totalSATOStaked);}
@@ -262,12 +262,8 @@ contract SATOStaking is ISATOStaking, Ownable, CheckContract, BaseMath {
         require(msg.sender == troveManagerAddress || msg.sender == activePoolAddress, "SATOStaking: caller is not TroveM nor ActivePool");
     }
 
-    function _requireCallerIsTroveManagerOrBO() internal view {
-        require(msg.sender == borrowerOperationsAddress || msg.sender == troveManagerAddress, "SATOStaking: caller is not BorrowerOps nor TroveManager");
-    }
-
-    function _requireCallerIsActivePool() internal view {
-        require(msg.sender == activePoolAddress, "SATOStaking: caller is not ActivePool");
+    function _requireCallerIsBO() internal view {
+        require(msg.sender == borrowerOperationsAddress, "SATOStaking: caller is not BorrowerOperations");
     }
 
     function _requireUserHasStake(uint currentStake) internal pure {  

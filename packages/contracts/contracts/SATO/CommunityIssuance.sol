@@ -128,7 +128,7 @@ contract CommunityIssuance is ICommunityIssuance, Ownable, CheckContract, BaseMa
         return SATOSupplyCap.mul(_getCumulativeIssuanceFraction()).div(DECIMAL_PRECISION);
     }
 	
-    function getSATOYetToIssue() public override view returns (uint256) {
+    function getSATOYetToIssue() external override view returns (uint256) {
         uint latestTotalSATOIssued = _getLatestIssuedSATO();
         return latestTotalSATOIssued >= SATOSupplyCap? 0 : SATOSupplyCap.sub(latestTotalSATOIssued);
     }

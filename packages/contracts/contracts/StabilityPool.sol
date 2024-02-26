@@ -535,11 +535,11 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         // calculate depositor's SATO gain using updated G
         uint _satoGainFromSnapshot;
         if (epochSnapshot == _currentEpoch && scaleSnapshot == _currentScale){
-            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobleG(_updatedG, epochToScaleToG[epochSnapshot][nextScale], initialDeposit, snapshots);
+            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobalG(_updatedG, epochToScaleToG[epochSnapshot][nextScale], initialDeposit, snapshots);
         } else if (epochSnapshot == _currentEpoch && nextScale == _currentScale){
-            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobleG(epochToScaleToG[epochSnapshot][scaleSnapshot], _updatedG, initialDeposit, snapshots);
+            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobalG(epochToScaleToG[epochSnapshot][scaleSnapshot], _updatedG, initialDeposit, snapshots);
         } else {
-            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobleG(epochToScaleToG[epochSnapshot][scaleSnapshot], epochToScaleToG[epochSnapshot][nextScale], initialDeposit, snapshots);
+            _satoGainFromSnapshot = _getSATOGainFromSnapshotsAndGlobalG(epochToScaleToG[epochSnapshot][scaleSnapshot], epochToScaleToG[epochSnapshot][nextScale], initialDeposit, snapshots);
         }       
         return _getSATOGainForDepositor(_depositor, _satoGainFromSnapshot);	
     }
@@ -818,10 +818,10 @@ contract StabilityPool is LiquityBase, Ownable, CheckContract, IStabilityPool {
         uint128 epochSnapshot = snapshots.epoch;
         uint128 scaleSnapshot = snapshots.scale;
 
-        return _getSATOGainFromSnapshotsAndGlobleG(epochToScaleToG[epochSnapshot][scaleSnapshot], epochToScaleToG[epochSnapshot][scaleSnapshot.add(1)], initialStake, snapshots);
+        return _getSATOGainFromSnapshotsAndGlobalG(epochToScaleToG[epochSnapshot][scaleSnapshot], epochToScaleToG[epochSnapshot][scaleSnapshot.add(1)], initialStake, snapshots);
     }
 
-    function _getSATOGainFromSnapshotsAndGlobleG(uint scaleEpochG, uint nextScaleEpochG, uint initialStake, Snapshots memory snapshots) internal view returns (uint) {
+    function _getSATOGainFromSnapshotsAndGlobalG(uint scaleEpochG, uint nextScaleEpochG, uint initialStake, Snapshots memory snapshots) internal view returns (uint) {
         /*
         * Grab the sum 'G' from the epoch at which the stake was made. The SATO gain may span up to one scale change.
         * If it does, the second portion of the SATO gain is scaled by 1e9.

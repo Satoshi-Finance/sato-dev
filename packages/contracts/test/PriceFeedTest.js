@@ -40,6 +40,10 @@ contract('PriceFeed', async accounts => {
     await mockChainlink.setLatestRoundId(3)
     await mockChainlink.setPrevRoundId(2)
 
+    // Set backup latest and prev round Id's to non-zero
+    await mockBackup.setLatestRoundId(3)
+    await mockBackup.setPrevRoundId(2)
+
     //Set current and prev prices in both oracles
     await mockChainlink.setPrice(dec(100, 18))
     await mockChainlink.setPrevPrice(dec(100, 18))

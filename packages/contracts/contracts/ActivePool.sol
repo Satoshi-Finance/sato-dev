@@ -197,8 +197,6 @@ contract ActivePool is Ownable, CheckContract, IActivePool, IERC3156FlashLender 
             "ActivePool: Flashloan not allowed if system collateral accouting is wrong"
         );
 
-        uint256 amountWithFee = amount.add(fee);
-
         IERC20 _collateralCached = collateral;
         require(_collateralCached.transfer(address(receiver), amount), "ActivePool: failed to transfer collateral to receiver");
 

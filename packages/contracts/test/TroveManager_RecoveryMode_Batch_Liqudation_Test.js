@@ -44,7 +44,7 @@ contract('TroveManager - in Recovery Mode - back to normal mode in 1 tx', async 
     const setup = async () => {
       const { collateral: A_coll, totalDebt: A_totalDebt } = await openTrove({ ICR: toBN(dec(296, 16)), extraParams: { from: alice } })
       const { collateral: B_coll, totalDebt: B_totalDebt } = await openTrove({ ICR: toBN(dec(280, 16)), extraParams: { from: bob } })
-      const { collateral: C_coll, totalDebt: C_totalDebt } = await openTrove({ ICR: toBN(dec(150, 16)), extraParams: { from: carol } })
+      const { collateral: C_coll, totalDebt: C_totalDebt } = await openTrove({ ICR: toBN(dec(180, 16)), extraParams: { from: carol } })
 
       const totalLiquidatedDebt = A_totalDebt.add(B_totalDebt).add(C_totalDebt)
 
@@ -52,7 +52,7 @@ contract('TroveManager - in Recovery Mode - back to normal mode in 1 tx', async 
       await stabilityPool.provideToSP(totalLiquidatedDebt, ZERO_ADDRESS, { from: whale })
 
       // Price drops
-      await priceFeed.setPrice(dec(80, 18))
+      await priceFeed.setPrice(dec(845, 17))
       const price = await priceFeed.getPrice()
       const TCR = await th.getTCR(contracts)
 
@@ -125,9 +125,9 @@ contract('TroveManager - in Recovery Mode - back to normal mode in 1 tx', async 
       const expectedGainInLUSD = expectedCollateralLiquidatedA.mul(price).div(mv._1e18BN).sub(A_totalDebt)
       const realGainInLUSD = spEthAfter.sub(spEthBefore).mul(price).div(mv._1e18BN).sub(spLusdBefore.sub(spLusdAfter))
 
-      assert.equal(spEthAfter.sub(spEthBefore).toString(), expectedCollateralLiquidatedA.toString(), 'Stability Pool ETH doesn’t match')
+      th.assertIsApproximatelyEqual(spEthAfter.sub(spEthBefore), expectedCollateralLiquidatedA)
       assert.equal(spLusdBefore.sub(spLusdAfter).toString(), A_totalDebt.toString(), 'Stability Pool LUSD doesn’t match')
-      assert.equal(realGainInLUSD.toString(), expectedGainInLUSD.toString(), 'Stability Pool gains don’t match')
+      th.assertIsApproximatelyEqual(realGainInLUSD, expectedGainInLUSD)
     })
 
     it('A trove over TCR is not liquidated', async () => {

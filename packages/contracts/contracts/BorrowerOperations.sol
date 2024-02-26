@@ -441,10 +441,6 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
 
     // --- 'Require' wrapper functions ---
 
-    function _requireCallerIsBorrower(address _borrower) internal view {
-        require(msg.sender == _borrower, "BorrowerOps: Caller must be the borrower for a withdrawal");
-    }
-
     function _requireNonZeroAdjustment(uint _collChange, uint _debtChange) internal view {
         require(_collChange != 0 || _debtChange != 0, "BorrowerOps: There must be either a collateral change or a debt change");
     }
@@ -553,26 +549,6 @@ contract BorrowerOperations is LiquityBase, Ownable, CheckContract, IBorrowerOpe
     }
 
     // --- ICR and TCR getters ---
-
-    // Compute the new collateral ratio, considering the change in coll and debt. Assumes 0 pending rewards.
-    function _getNewNominalICRFromTroveChange
-    (
-        uint _coll,
-        uint _debt,
-        uint _collChange,
-        bool _isCollIncrease,
-        uint _debtChange,
-        bool _isDebtIncrease
-    )
-        pure
-        internal
-        returns (uint)
-    {
-        (uint newColl, uint newDebt) = _getNewTroveAmounts(_coll, _debt, _collChange, _isCollIncrease, _debtChange, _isDebtIncrease);
-
-        uint newNICR = LiquityMath._computeNominalCR(newColl, newDebt);
-        return newNICR;
-    }
 
     // Compute the new collateral ratio, considering the change in coll and debt. Assumes 0 pending rewards.
     function _getNewICRFromTroveChange

@@ -1645,10 +1645,16 @@ contract('TroveManager - in Recovery Mode', async accounts => {
     assert.isTrue(bob_ICR.gt(mv._MCR) && bob_ICR.lt(TCR))
     // debt is increased by fee, due to previous redemption
     const bob_debt = await troveManager.getTroveDebt(bob)
+	
+    let _bRedemptionShareCheck = await troveManager.hasPendingRedemptionShare(bob);
+    assert.isTrue(_bRedemptionShareCheck);
 
     // Liquidate Bob
     let bobEntireDebtAndColl = await troveManager.getEntireDebtAndColl(bob);
     await troveManager.liquidate(bob, { from: owner })
+	
+    let _bRedemptionShareCheckAfter = await troveManager.hasPendingRedemptionShare(bob);
+    assert.isFalse(_bRedemptionShareCheckAfter);
 
     // check Bob’s collateral surplus
     const bob_remainingCollateral = bobEntireDebtAndColl[1].sub(bobEntireDebtAndColl[0].mul(th.toBN(dec(11, 17))).div(price))
