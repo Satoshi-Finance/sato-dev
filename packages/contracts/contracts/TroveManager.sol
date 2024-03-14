@@ -1396,8 +1396,8 @@ contract TroveManager is LiquityBase, Ownable, CheckContract, ITroveManager {
         uint timePassed = block.timestamp.sub(lastFeeOperationTime);
 
         if (timePassed >= SECONDS_IN_ONE_MINUTE) {
-            lastFeeOperationTime = block.timestamp;
-            emit LastFeeOpTimeUpdated(block.timestamp);
+            lastFeeOperationTime += _minutesPassedSinceLastFeeOp() * SECONDS_IN_ONE_MINUTE;
+            emit LastFeeOpTimeUpdated(lastFeeOperationTime);
         }
     }
 

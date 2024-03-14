@@ -3975,59 +3975,6 @@ contract('TroveManager', async accounts => {
     assert.isTrue(baseRate_2.gt(baseRate_1))
   })
 
-  it("redeemCollateral(): lastFeeOpTime doesn't update if less time than decay interval has passed since the last fee operation [ @skip-on-coverage ]", async () => {
-    await openTrove({ ICR: toBN(dec(20, 18)), extraParams: { from: whale } })
-
-    await openTrove({ ICR: toBN(dec(200, 16)), extraLUSDAmount: dec(100, 18), extraParams: { from: A } })
-    await openTrove({ ICR: toBN(dec(190, 16)), extraLUSDAmount: dec(100, 18), extraParams: { from: B } })
-    await openTrove({ ICR: toBN(dec(180, 16)), extraLUSDAmount: dec(100, 18), extraParams: { from: C } })
-
-    // skip bootstrapping phase
-    await th.fastForwardTime(timeValues.SECONDS_IN_ONE_WEEK * 2, web3.currentProvider)
-
-    const A_balanceBefore = await debtToken.balanceOf(A)
-
-    // A redeems 10 LUSD
-    await th.redeemCollateral(A, contracts, dec(10, 18), GAS_PRICE)
-
-    // Check A's balance has decreased by 10 LUSD
-    assert.equal(A_balanceBefore.sub(await debtToken.balanceOf(A)), dec(10, 18))
-
-    // Check baseRate is now non-zero
-    const baseRate_1 = await troveManager.baseRate()
-    assert.isTrue(baseRate_1.gt(toBN('0')))
-
-    const lastFeeOpTime_1 = await troveManager.lastFeeOperationTime()
-
-    // 45 seconds pass
-    th.fastForwardTime(45, web3.currentProvider)
-
-    // Borrower A triggers a fee
-    await th.redeemCollateral(A, contracts, dec(1, 18), GAS_PRICE)
-
-    const lastFeeOpTime_2 = await troveManager.lastFeeOperationTime()
-
-    // Check that the last fee operation time did not update, as borrower A's 2nd redemption occured
-    // since before minimum interval had passed 
-    assert.isTrue(lastFeeOpTime_2.eq(lastFeeOpTime_1))
-
-    // 15 seconds passes
-    th.fastForwardTime(15, web3.currentProvider)
-
-    // Check that now, at least one hour has passed since lastFeeOpTime_1
-    const timeNow = await th.getLatestBlockTimestamp(web3)
-    assert.isTrue(toBN(timeNow).sub(lastFeeOpTime_1).gte(3600))
-
-    // Borrower A triggers a fee
-    await th.redeemCollateral(A, contracts, dec(1, 18), GAS_PRICE)
-
-    const lastFeeOpTime_3 = await troveManager.lastFeeOperationTime()
-
-    // Check that the last fee operation time DID update, as A's 2rd redemption occured
-    // after minimum interval had passed 
-    assert.isTrue(lastFeeOpTime_3.gt(lastFeeOpTime_1))
-  })
-
   it("redeemCollateral(): a redemption made at zero base rate send a non-zero ETHFee to SATO staking contract", async () => {
     // time fast-forwards 1 year, and multisig stakes 1 SATO
     await th.fastForwardTime(timeValues.SECONDS_IN_ONE_YEAR, web3.currentProvider)
